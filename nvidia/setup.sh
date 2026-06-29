@@ -40,4 +40,10 @@ if [[ ! -d "${HOME}/.config/nvim" ]]; then
     rm -rf "${HOME}/.config/nvim/.git"
 fi
 
+# ------------------------------------------------------------------
+# git: rewrite https://github.com/ to SSH by default
+# ------------------------------------------------------------------
+git config --global url."git@github.com:".insteadOf "https://github.com/"
+echo "==> git configured: https://github.com/ → git@github.com:"
+
 echo "==> setup.sh done. Start a new zsh session or run: exec zsh"
