@@ -8,6 +8,11 @@
 # Step 2: build (or skip) flaggems-nvidia:dev from nvidia/Dockerfile
 # Step 3: start container with -itd (detached), then exec into it
 #
+# SSH key forwarding (applied at container creation, pick one):
+#   ~/.ssh dir mount  — default; keys available as files (read-only)
+#   SSH agent forward — private key never leaves the host; requires
+#                       ssh-agent running with keys loaded on the host
+#
 # Usage:
 #   ./nvidia/start.sh                    # default container name
 #   ./nvidia/start.sh -n my_container    # custom container name
@@ -15,6 +20,7 @@
 #   ./nvidia/start.sh --rebuild-runtime  # force-rebuild runtime image
 #   ./nvidia/start.sh --rebuild-dev      # force-rebuild dev image
 #   ./nvidia/start.sh --rebuild          # force-rebuild both images
+#   ./nvidia/start.sh --ssh-agent        # use SSH agent forwarding instead
 #   ./nvidia/start.sh -c "python a.py"   # exec command (default: zsh)
 
 set -euo pipefail
@@ -30,6 +36,7 @@ FORCE_RECREATE=false
 FORCE_REBUILD_RUNTIME=false
 FORCE_REBUILD_DEV=false
 EXEC_COMMAND="zsh"
+SSH_MODE="mount"   # "mount" | "agent"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -51,7 +58,13 @@ show_help() {
         --rebuild-runtime   强制重新构建 runtime 镜像
         --rebuild-dev       强制重新构建 dev 镜像
         --rebuild           强制重新构建 runtime + dev 两个镜像
+        --ssh-agent         使用 SSH agent 转发（默认: 挂载 ~/.ssh）
     -c, --cmd COMMAND       exec 进容器时执行的命令（默认: zsh）
+
+SSH 说明:
+    默认将宿主机 ~/.ssh 以只读方式挂载到容器内，密钥作为文件存在。
+    --ssh-agent 模式下私钥不进入容器，仅转发 SSH_AUTH_SOCK socket，
+    需要宿主机已运行 ssh-agent 并通过 ssh-add 加载密钥。
 
 示例:
     start.sh                        # 默认容器名，按需自动构建
@@ -59,6 +72,7 @@ show_help() {
     start.sh -f                     # 强制删除并重建容器
     start.sh --rebuild              # 重新构建 runtime 和 dev 镜像
     start.sh --rebuild-dev          # 仅重新构建 dev 镜像（runtime 不变）
+    start.sh --ssh-agent            # 使用 SSH agent 转发
     start.sh -c "python train.py"   # exec 执行特定命令
 EOF
     exit 0
@@ -75,6 +89,7 @@ while [[ $# -gt 0 ]]; do
         --rebuild-runtime) FORCE_REBUILD_RUNTIME=true; shift ;;
         --rebuild-dev)     FORCE_REBUILD_DEV=true;     shift ;;
         --rebuild)         FORCE_REBUILD_RUNTIME=true; FORCE_REBUILD_DEV=true; shift ;;
+        --ssh-agent)       SSH_MODE="agent";           shift ;;
         -c|--cmd)          EXEC_COMMAND="$2";          shift 2 ;;
         -n|--name)         CONTAINER_NAME="$2";        shift 2 ;;
         -*)                print_error "未知选项: $1"; show_help ;;
@@ -128,6 +143,7 @@ echo -e "${CYAN}  名称:         ${CONTAINER_NAME}${NC}"
 echo -e "${CYAN}  镜像:         ${DEV_IMAGE}${NC}"
 echo -e "${CYAN}  runtime 基础: ${RUNTIME_IMAGE}${NC}"
 echo -e "${CYAN}  仓库:         ${REPO_ROOT}${NC}"
+echo -e "${CYAN}  SSH 模式:     ${SSH_MODE}${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 
@@ -139,7 +155,30 @@ if $FORCE_RECREATE && container_exists; then
     print_info "已删除旧容器"
 fi
 
-# ── Step 4: create or start (detached) ───────────────────────────
+# ── Step 4: build SSH mount/agent args ───────────────────────────
+SSH_ARGS=()
+if [[ "$SSH_MODE" == "agent" ]]; then
+    if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
+        print_warn "SSH_AUTH_SOCK 未设置，agent 转发不可用，回退到 ~/.ssh 挂载"
+        SSH_MODE="mount"
+    else
+        print_info "SSH 模式: agent 转发 (${SSH_AUTH_SOCK})"
+        SSH_ARGS+=(
+            -v "${SSH_AUTH_SOCK}":/tmp/ssh_auth.sock:ro
+            -e SSH_AUTH_SOCK=/tmp/ssh_auth.sock
+        )
+    fi
+fi
+if [[ "$SSH_MODE" == "mount" ]]; then
+    if [[ -d "$HOME/.ssh" ]]; then
+        print_info "SSH 模式: 挂载 ~/.ssh（只读）"
+        SSH_ARGS+=(-v "$HOME/.ssh":/home/"$(id -un)"/.ssh:ro)
+    else
+        print_warn "~/.ssh 不存在，跳过 SSH 挂载"
+    fi
+fi
+
+# ── Step 5: create or start (detached) ───────────────────────────
 if ! container_exists; then
     print_step "创建并后台启动容器: ${CONTAINER_NAME}"
     docker run -itd \
@@ -165,6 +204,7 @@ if ! container_exists; then
         -v "${REPO_ROOT}":/workspace/FlagGems \
         -v "$HOME":/home/host \
         -v claude-code-data:/home/"$(id -un)"/.claude \
+        "${SSH_ARGS[@]}" \
         \
         `# env` \
         -e PIP_USER=0 \
@@ -183,7 +223,7 @@ else
     print_info "发现已在运行的容器: ${CONTAINER_NAME}"
 fi
 
-# ── Step 5: exec into the running container ───────────────────────
+# ── Step 6: exec into the running container ───────────────────────
 print_step "进入容器: ${CONTAINER_NAME} — exec: ${EXEC_COMMAND}"
 docker exec -it "${CONTAINER_NAME}" ${EXEC_COMMAND}
 
