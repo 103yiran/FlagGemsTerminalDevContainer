@@ -179,6 +179,14 @@ if [[ "$SSH_MODE" == "mount" ]]; then
 fi
 
 # ── Step 5: create or start (detached) ───────────────────────────
+# Container home dir lives at $HOME/<container_name> on the host.
+# This covers ~/.claude automatically, no named volume needed.
+CONTAINER_HOME_HOST="$HOME/${CONTAINER_NAME}"
+if [[ ! -d "$CONTAINER_HOME_HOST" ]]; then
+    print_step "创建容器 home 目录: ${CONTAINER_HOME_HOST}"
+    mkdir -p "$CONTAINER_HOME_HOST"
+fi
+
 if ! container_exists; then
     print_step "创建并后台启动容器: ${CONTAINER_NAME}"
     docker run -itd \
@@ -202,8 +210,7 @@ if ! container_exists; then
         \
         `# mounts` \
         -v "${REPO_ROOT}":/workspace/FlagGems \
-        -v "$HOME":/home/host \
-        -v claude-code-data:/home/"$(id -un)"/.claude \
+        -v "${CONTAINER_HOME_HOST}":/home/"$(id -un)" \
         "${SSH_ARGS[@]}" \
         \
         `# env` \
