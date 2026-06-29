@@ -4,7 +4,7 @@
 #             attach to it via docker exec.
 #
 # Step 1: build (or skip) flaggems-nvidia:runtime from
-#         container/flaggems-nvidia-13.3  (--target runtime)
+#         ../FlagGems/container/flaggems-nvidia-13.3  (--target runtime)
 # Step 2: build (or skip) flaggems-nvidia:dev from nvidia/Dockerfile
 # Step 3: start container with -itd (detached), then exec into it
 #
@@ -26,7 +26,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+readonly FLAGGEMS_ROOT="$(cd "$SCRIPT_DIR/../../FlagGems" && pwd)"
 
 readonly RUNTIME_IMAGE="flaggems-nvidia:runtime"
 readonly DEV_IMAGE="flaggems-nvidia:dev"
@@ -111,8 +111,8 @@ if $FORCE_REBUILD_RUNTIME || ! image_exists "$RUNTIME_IMAGE"; then
     docker build \
         --target runtime \
         -t "$RUNTIME_IMAGE" \
-        -f "$REPO_ROOT/container/flaggems-nvidia-13.3" \
-        "$REPO_ROOT"
+        -f "$FLAGGEMS_ROOT/container/flaggems-nvidia-13.3" \
+        "$FLAGGEMS_ROOT"
     print_success "runtime 镜像构建完成: $RUNTIME_IMAGE"
 else
     print_info "runtime 镜像已存在，跳过: $RUNTIME_IMAGE"
@@ -142,7 +142,7 @@ echo -e "${CYAN}容器信息:${NC}"
 echo -e "${CYAN}  名称:         ${CONTAINER_NAME}${NC}"
 echo -e "${CYAN}  镜像:         ${DEV_IMAGE}${NC}"
 echo -e "${CYAN}  runtime 基础: ${RUNTIME_IMAGE}${NC}"
-echo -e "${CYAN}  仓库:         ${REPO_ROOT}${NC}"
+echo -e "${CYAN}  FlagGems:     ${FLAGGEMS_ROOT}${NC}"
 echo -e "${CYAN}  SSH 模式:     ${SSH_MODE}${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
@@ -209,7 +209,7 @@ if ! container_exists; then
         --ulimit nofile=1048576:1048576 \
         \
         `# mounts` \
-        -v "${REPO_ROOT}":/workspace/FlagGems:ro \
+        -v "${FLAGGEMS_ROOT}":/workspace/FlagGems:ro \
         -v "${CONTAINER_HOME_HOST}":/home/"$(id -un)" \
         "${SSH_ARGS[@]}" \
         \
