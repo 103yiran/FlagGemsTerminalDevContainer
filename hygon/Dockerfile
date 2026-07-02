@@ -37,8 +37,9 @@ RUN apt-get update \
 # ------------------------------------------------------------------
 # Neovim — stable binary from SourceForge mirror
 # ------------------------------------------------------------------
-RUN wget -q https://master.dl.sourceforge.net/project/neovim.mirror/stable/nvim-linux-x86_64.tar.gz \
-        -O /tmp/nvim.tar.gz \
+RUN curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 300 \
+        https://master.dl.sourceforge.net/project/neovim.mirror/stable/nvim-linux-x86_64.tar.gz \
+        -o /tmp/nvim.tar.gz \
     && tar -xzf /tmp/nvim.tar.gz -C /usr/local --strip-components=1 \
     && rm /tmp/nvim.tar.gz
 
