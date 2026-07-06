@@ -222,6 +222,14 @@ if ! container_exists; then
         \
         "${DEV_IMAGE}"
     print_success "容器已创建并在后台运行"
+
+    # ── Run setup.sh inside the new container ─────────────────────
+    print_step "运行 setup.sh 初始化容器环境..."
+    docker cp "${SCRIPT_DIR}/setup.sh" "${CONTAINER_NAME}:/tmp/setup.sh"
+    docker exec "${CONTAINER_NAME}" zsh /tmp/setup.sh
+    docker exec "${CONTAINER_NAME}" rm /tmp/setup.sh
+    print_success "setup.sh 执行完毕"
+
 elif ! container_running; then
     print_info "容器已存在但已停止，重新启动..."
     docker start "${CONTAINER_NAME}" > /dev/null
