@@ -78,7 +78,13 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------
-# Switch to non-root user; zsh/nvim config done via setup.sh
+# Switch to non-root user; pre-download LazyVim + all plugins
 # ------------------------------------------------------------------
 USER $USERNAME
+
+RUN git clone --depth=1 https://github.com/LazyVim/starter \
+        "${HOME}/.config/nvim" \
+    && rm -rf "${HOME}/.config/nvim/.git" \
+    && nvim --headless "+Lazy! sync" +qa
+
 WORKDIR /workspace/FlagGems

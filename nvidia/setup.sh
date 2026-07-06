@@ -31,13 +31,15 @@ sed -i 's/^plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlightin
     "${HOME}/.zshrc" 2>/dev/null || true
 
 # ------------------------------------------------------------------
-# nvim: LazyVim (https://www.lazyvim.org) as the config starter
+# nvim: LazyVim config already pre-installed in the image.
+# If ~/.config/nvim is missing for some reason, re-clone the starter.
 # ------------------------------------------------------------------
 if [[ ! -d "${HOME}/.config/nvim" ]]; then
-    echo "==> Installing LazyVim starter config..."
+    echo "==> Re-installing LazyVim starter config (was not found in image)..."
     git clone --depth=1 https://github.com/LazyVim/starter \
         "${HOME}/.config/nvim"
     rm -rf "${HOME}/.config/nvim/.git"
+    nvim --headless "+Lazy! sync" +qa
 fi
 
 # ------------------------------------------------------------------
