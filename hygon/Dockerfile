@@ -10,6 +10,11 @@
 ARG RUNTIME_IMAGE=flaggems-hygon:runtime
 FROM ${RUNTIME_IMAGE}
 
+# Allow non-root users to execute the uv-managed Python interpreter.
+# The runtime image copies uv's Python into /root/.local; /root itself
+# is mode 700 by default, blocking traversal for non-root users.
+RUN chmod o+x /root && chmod -R a+rX /root/.local/share/uv
+
 ARG USERNAME=user
 ARG USER_UID=1000
 ARG USER_GID=1000
