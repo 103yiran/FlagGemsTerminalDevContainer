@@ -15,7 +15,19 @@ ARG USER_UID=1000
 ARG USER_GID=1000
 
 # ------------------------------------------------------------------
-# System packages: sudo, zsh, neovim deps, misc tools,
+# Switch apt sources to Aliyun mirror (Ubuntu 24.04 noble)
+# ------------------------------------------------------------------
+RUN sed -i \
+        -e 's|http://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
+        -e 's|http://security.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
+        /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null \
+    || sed -i \
+        -e 's|http://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
+        -e 's|http://security.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
+        /etc/apt/sources.list
+
+# ------------------------------------------------------------------
+# System packages: sudo, zsh, neovim, misc tools,
 #                  pre-commit toolchain (flake8, black, isort,
 #                  clang-format, pre-commit)
 # ------------------------------------------------------------------
@@ -33,6 +45,8 @@ RUN apt-get update \
         python3-pip \
         clang-format \
         openssh-client \
+        neovim \
+        gh \
     && /usr/bin/pip3 install --no-cache-dir --break-system-packages \
         --timeout 120 --retries 5 \
         pre-commit==3.7.1 \
@@ -46,43 +60,23 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------
-# Neovim — stable binary, try GitHub releases then SourceForge mirror
+# Claude Code CLI — Node.js from Aliyun mirror + npm via npmmirror
 # ------------------------------------------------------------------
-RUN curl -fsSL --retry 3 --retry-delay 5 --retry-max-time 120 \
-        https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz \
-        -o /tmp/nvim.tar.gz \
-    || curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 300 \
-        https://master.dl.sourceforge.net/project/neovim.mirror/stable/nvim-linux-x86_64.tar.gz \
-        -o /tmp/nvim.tar.gz \
-    && tar -xzf /tmp/nvim.tar.gz -C /usr/local --strip-components=1 \
-    && rm /tmp/nvim.tar.gz
-
-# ------------------------------------------------------------------
-# Claude Code CLI (Node.js + npm)
-# ------------------------------------------------------------------
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
+RUN curl -fsSL --retry 3 \
+        "https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-x64.tar.xz" \
+        -o /tmp/node.tar.xz \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm /tmp/node.tar.xz \
     && npm install -g @anthropic-ai/claude-code \
-    && rm -rf /var/lib/apt/lists/*
-
-# ------------------------------------------------------------------
-# GitHub CLI (gh)
-# ------------------------------------------------------------------
-RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-        | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-        > /etc/apt/sources.list.d/github-cli.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends gh \
-    && rm -rf /var/lib/apt/lists/*
+        --registry https://registry.npmmirror.com
 
 # ------------------------------------------------------------------
 # Switch to non-root user; pre-download LazyVim + all plugins
 # ------------------------------------------------------------------
 USER $USERNAME
 
-RUN git clone --depth=1 https://github.com/LazyVim/starter \
+RUN --mount=type=ssh \
+    git clone --depth=1 git@github.com:LazyVim/starter.git \
         "${HOME}/.config/nvim" \
     && rm -rf "${HOME}/.config/nvim/.git" \
     && nvim --headless "+Lazy! sync" +qa

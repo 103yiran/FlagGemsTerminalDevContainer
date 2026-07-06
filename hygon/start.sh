@@ -101,12 +101,77 @@ else
     print_info "runtime 镜像已存在，跳过: $RUNTIME_IMAGE"
 fi
 
-# ── Step 2: dev image ─────────────────────────────────────────────
+# ── Step 2: ensure ssh-agent is running with keys loaded ─────────
+ensure_ssh_agent() {
+    # 如果 agent 未运行，启动一个并导出环境变量
+    if [[ -z "${SSH_AUTH_SOCK:-}" ]] || ! ssh-add -l &>/dev/null; then
+        print_step "启动 ssh-agent 并加载密钥..."
+        eval "$(ssh-agent -s)" > /dev/null
+
+        # 找宿主机上所有标准私钥并尝试添加
+        local added=0
+        for key in "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_ecdsa"; do
+            if [[ -f "$key" ]]; then
+                if ssh-add "$key" 2>/dev/null; then
+                    print_success "已加载密钥: $key"
+                    added=$((added + 1))
+                fi
+            fi
+        done
+
+        if [[ $added -eq 0 ]]; then
+            print_warn "未找到可用的 SSH 私钥（~/.ssh/id_ed25519 / id_rsa / id_ecdsa）"
+            print_warn "请先运行: ssh-keygen -t ed25519 -C \"your_email\""
+            print_warn "并将公钥添加到 GitHub: cat ~/.ssh/id_ed25519.pub"
+        fi
+    else
+        print_info "ssh-agent 已运行，已加载密钥: $(ssh-add -l | wc -l) 个"
+    fi
+}
+
+# ── Step 3: ensure docker buildx is available ─────────────────────
+ensure_buildx() {
+    if docker buildx version &>/dev/null; then
+        print_info "docker buildx 已就绪: $(docker buildx version 2>&1 | head -1)"
+        return 0
+    fi
+    print_step "docker buildx 未找到，下载用户级插件到 ~/.docker/cli-plugins/ ..."
+    local plugin_dir="$HOME/.docker/cli-plugins"
+    mkdir -p "$plugin_dir"
+    # 获取最新版本号
+    local version
+    version=$(curl -fsSL https://api.github.com/repos/docker/buildx/releases/latest \
+              | grep '"tag_name"' | head -1 | sed 's/.*"v\([^"]*\)".*/\1/')
+    if [[ -z "$version" ]]; then
+        print_error "无法获取 buildx 版本信息，请检查网络或手动安装："
+        print_error "  https://docs.docker.com/go/buildx/"
+        exit 1
+    fi
+    local arch
+    arch=$(uname -m); [[ "$arch" == "x86_64" ]] && arch="amd64"
+    local url="https://github.com/docker/buildx/releases/download/v${version}/buildx-v${version}.linux-${arch}"
+    print_info "下载 buildx v${version} (${arch})..."
+    if curl -fsSL "$url" -o "$plugin_dir/docker-buildx" \
+       && chmod +x "$plugin_dir/docker-buildx"; then
+        print_success "buildx 安装完成: $plugin_dir/docker-buildx"
+    else
+        print_error "下载失败，请手动安装 buildx："
+        print_error "  https://docs.docker.com/go/buildx/"
+        exit 1
+    fi
+}
+
+ensure_ssh_agent
+ensure_buildx
+
+# ── Step 4: dev image ─────────────────────────────────────────────
 if $FORCE_REBUILD_DEV || ! image_exists "$DEV_IMAGE"; then
     $FORCE_REBUILD_DEV \
         && print_step "强制重新构建 dev 镜像: $DEV_IMAGE" \
         || print_step "dev 镜像不存在，开始构建: $DEV_IMAGE"
-    docker build \
+    docker buildx build \
+        --ssh default \
+        --load \
         --build-arg RUNTIME_IMAGE="$RUNTIME_IMAGE" \
         --build-arg USERNAME="$(id -un)" \
         --build-arg USER_UID="$(id -u)" \
@@ -129,7 +194,7 @@ echo -e "${CYAN}  仓库:         ${REPO_ROOT}${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 
-# ── Step 3: force-recreate ────────────────────────────────────────
+# ── Step 4: force-recreate ────────────────────────────────────────
 if $FORCE_RECREATE && container_exists; then
     print_warn "强制重建：删除已有容器 ${CONTAINER_NAME}"
     container_running && docker stop "${CONTAINER_NAME}" > /dev/null
@@ -137,7 +202,7 @@ if $FORCE_RECREATE && container_exists; then
     print_info "已删除旧容器"
 fi
 
-# ── Step 4: create or enter ───────────────────────────────────────
+# ── Step 5: create or enter ───────────────────────────────────────
 if container_exists; then
     print_info "发现已有容器: ${CONTAINER_NAME}"
     if container_running; then
