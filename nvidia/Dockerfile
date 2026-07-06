@@ -27,7 +27,7 @@ RUN sed -i \
         /etc/apt/sources.list
 
 # ------------------------------------------------------------------
-# System packages: sudo, zsh, neovim, misc tools,
+# System packages: sudo, zsh, misc tools,
 #                  pre-commit toolchain (flake8, black, isort,
 #                  clang-format, pre-commit)
 # ------------------------------------------------------------------
@@ -45,10 +45,10 @@ RUN apt-get update \
         python3-pip \
         clang-format \
         openssh-client \
-        neovim \
         gh \
     && /usr/bin/pip3 install --no-cache-dir --break-system-packages \
         --timeout 120 --retries 5 \
+        --index-url https://mirrors.aliyun.com/pypi/simple/ \
         pre-commit==3.7.1 \
         flake8==7.1.0 \
         black==23.7.0 \
@@ -58,6 +58,18 @@ RUN apt-get update \
     && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$USERNAME" \
     && chmod 0440 "/etc/sudoers.d/$USERNAME" \
     && rm -rf /var/lib/apt/lists/*
+
+# ------------------------------------------------------------------
+# Neovim stable (>= 0.11) via neovim-ppa/unstable
+# (apt universe only has 0.9; AppImage/tarball requires GitHub access)
+# ------------------------------------------------------------------
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends software-properties-common \
+    && add-apt-repository ppa:neovim-ppa/unstable \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends neovim \
+    && rm -rf /var/lib/apt/lists/* \
+    && nvim --version | head -1
 
 # ------------------------------------------------------------------
 # Claude Code CLI — Node.js from Aliyun mirror + npm via npmmirror
@@ -71,14 +83,9 @@ RUN curl -fsSL --retry 3 \
         --registry https://registry.npmmirror.com
 
 # ------------------------------------------------------------------
-# Switch to non-root user; pre-download LazyVim + all plugins
+# Switch to non-root user
+# (LazyVim + zsh plugins installed at first container start via setup.sh)
 # ------------------------------------------------------------------
 USER $USERNAME
-
-RUN --mount=type=ssh \
-    git clone --depth=1 git@github.com:LazyVim/starter.git \
-        "${HOME}/.config/nvim" \
-    && rm -rf "${HOME}/.config/nvim/.git" \
-    && nvim --headless "+Lazy! sync" +qa
 
 WORKDIR /workspace/FlagGems
