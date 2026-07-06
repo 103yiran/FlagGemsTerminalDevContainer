@@ -191,6 +191,7 @@ if ! container_exists; then
     print_step "创建并后台启动容器: ${CONTAINER_NAME}"
     docker run -itd \
         --name "${CONTAINER_NAME}" \
+        --entrypoint /usr/bin/zsh \
         \
         `# NVIDIA GPU` \
         --gpus all \
@@ -219,8 +220,7 @@ if ! container_exists; then
         `# workdir` \
         -w /workspace/FlagGems \
         \
-        "${DEV_IMAGE}" \
-        zsh
+        "${DEV_IMAGE}"
     print_success "容器已创建并在后台运行"
 elif ! container_running; then
     print_info "容器已存在但已停止，重新启动..."
