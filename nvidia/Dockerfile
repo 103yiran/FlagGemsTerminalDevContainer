@@ -32,7 +32,9 @@ RUN apt-get update \
         fd-find \
         python3-pip \
         clang-format \
+        openssh-client \
     && /usr/bin/pip3 install --no-cache-dir --break-system-packages \
+        --timeout 120 --retries 5 \
         pre-commit==3.7.1 \
         flake8==7.1.0 \
         black==23.7.0 \
