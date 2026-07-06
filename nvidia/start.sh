@@ -114,6 +114,9 @@ if $FORCE_REBUILD_RUNTIME || ! image_exists "$RUNTIME_IMAGE"; then
         -f "$FLAGGEMS_ROOT/container/flaggems-nvidia-13.3" \
         "$FLAGGEMS_ROOT"
     print_success "runtime 镜像构建完成: $RUNTIME_IMAGE"
+    # runtime 重建意味着 dev 镜像和容器都需要重建
+    FORCE_REBUILD_DEV=true
+    FORCE_RECREATE=true
 else
     print_info "runtime 镜像已存在，跳过: $RUNTIME_IMAGE"
 fi
@@ -162,6 +165,8 @@ if $FORCE_REBUILD_DEV || ! image_exists "$DEV_IMAGE"; then
         -f "$SCRIPT_DIR/Dockerfile" \
         "$SCRIPT_DIR"
     print_success "dev 镜像构建完成: $DEV_IMAGE"
+    # 镜像重建后必须重建容器，否则容器继续使用旧镜像
+    FORCE_RECREATE=true
 else
     print_info "dev 镜像已存在，跳过: $DEV_IMAGE"
 fi
