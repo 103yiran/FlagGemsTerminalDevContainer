@@ -15,7 +15,9 @@ ARG USER_UID=1000
 ARG USER_GID=1000
 
 # ------------------------------------------------------------------
-# System packages: sudo, zsh, neovim deps, misc tools
+# System packages: sudo, zsh, neovim deps, misc tools,
+#                  pre-commit toolchain (flake8, black, isort,
+#                  clang-format, pre-commit)
 # ------------------------------------------------------------------
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -28,6 +30,13 @@ RUN apt-get update \
         ca-certificates \
         ripgrep \
         fd-find \
+        python3-pip \
+        clang-format \
+    && /usr/bin/pip3 install --no-cache-dir --break-system-packages \
+        pre-commit==3.7.1 \
+        flake8==7.1.0 \
+        black==23.7.0 \
+        isort==5.12.0 \
     && groupadd --gid "$USER_GID" "$USERNAME" \
     && useradd --uid "$USER_UID" --gid "$USER_GID" -m -s /usr/bin/zsh "$USERNAME" \
     && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$USERNAME" \
@@ -35,9 +44,12 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------
-# Neovim — stable binary from SourceForge mirror
+# Neovim — stable binary, try GitHub releases then SourceForge mirror
 # ------------------------------------------------------------------
-RUN curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 300 \
+RUN curl -fsSL --retry 3 --retry-delay 5 --retry-max-time 120 \
+        https://github.com/neovim/neovim/releases/download/stable/nvim-linux-x86_64.tar.gz \
+        -o /tmp/nvim.tar.gz \
+    || curl -fsSL --retry 5 --retry-delay 10 --retry-max-time 300 \
         https://master.dl.sourceforge.net/project/neovim.mirror/stable/nvim-linux-x86_64.tar.gz \
         -o /tmp/nvim.tar.gz \
     && tar -xzf /tmp/nvim.tar.gz -C /usr/local --strip-components=1 \
