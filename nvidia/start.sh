@@ -239,7 +239,7 @@ if ! container_exists; then
         --ulimit nofile=1048576:1048576 \
         \
         `# mounts` \
-        -v "${FLAGGEMS_ROOT}":/workspace/FlagGems:ro \
+        -v "${FLAGGEMS_ROOT}":/workspace/FlagGems \
         -v "${CONTAINER_HOME_HOST}":/home/"$(id -un)" \
         "${SSH_ARGS[@]}" \
         \

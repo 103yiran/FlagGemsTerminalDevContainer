@@ -214,7 +214,7 @@ if ! container_exists; then
         --ulimit stack=67108864 \
         \
         `# mounts` \
-        -v "${REPO_ROOT}":/workspace/FlagGems:ro \
+        -v "${REPO_ROOT}":/workspace/FlagGems \
         -v /opt/hyhal:/opt/hyhal \
         -v "${CONTAINER_HOME_HOST}":/home/"$(id -un)" \
         "${SSH_ARGS[@]}" \
