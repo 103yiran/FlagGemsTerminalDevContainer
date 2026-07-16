@@ -3,7 +3,8 @@
 #             image on top of it and launch an interactive container.
 #
 # Step 1: build (or skip) flaggems-hygon:runtime from
-#         container/flaggems-hygon-26.04  (--target runtime)
+#         build-infra (https://gitcode.com/flagos-ai/build-infra.git)
+#         legacy/flaggems-hygon-26.04  (--target runtime)
 # Step 2: build (or skip) flaggems-hygon:dev from dev/hygon/Dockerfile
 #
 # Usage:
@@ -87,14 +88,30 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Step 1: runtime image ─────────────────────────────────────────
+# Dockerfile comes from build-infra rather than the FlagGems checkout.
+readonly BUILD_INFRA_URL="https://gitcode.com/flagos-ai/build-infra.git"
+readonly BUILD_INFRA_DIR="${HOME}/.cache/build-infra"
+
+sync_build_infra() {
+    if [[ -d "$BUILD_INFRA_DIR/.git" ]]; then
+        print_step "更新 build-infra: git pull..."
+        git -C "$BUILD_INFRA_DIR" pull --ff-only --quiet \
+            || print_warn "build-infra pull 失败，继续使用本地缓存"
+    else
+        print_step "克隆 build-infra → ${BUILD_INFRA_DIR}"
+        git clone --depth=1 "$BUILD_INFRA_URL" "$BUILD_INFRA_DIR"
+    fi
+}
+
 if $FORCE_REBUILD_RUNTIME || ! image_exists "$RUNTIME_IMAGE"; then
     $FORCE_REBUILD_RUNTIME \
         && print_step "强制重新构建 runtime 镜像: $RUNTIME_IMAGE" \
         || print_step "runtime 镜像不存在，开始构建: $RUNTIME_IMAGE"
+    sync_build_infra
     docker build \
         --target runtime \
         -t "$RUNTIME_IMAGE" \
-        -f "$REPO_ROOT/container/flaggems-hygon-26.04" \
+        -f "${BUILD_INFRA_DIR}/legacy/flaggems-hygon-26.04" \
         "$REPO_ROOT"
     print_success "runtime 镜像构建完成: $RUNTIME_IMAGE"
     FORCE_REBUILD_DEV=true

@@ -2,7 +2,7 @@
 # FlagGems — NVIDIA terminal development image
 #
 # Layers development tools on top of the pre-built runtime
-# image produced by container/flaggems-nvidia-13.3.
+# image produced by build-infra legacy/flaggems-nvidia-13.3.
 #
 # Usage: built and launched via nvidia/start.sh
 # ============================================================
@@ -14,6 +14,10 @@ FROM ${RUNTIME_IMAGE}
 # The runtime image copies uv's Python into /root/.local; /root itself
 # is mode 700 by default, blocking traversal for non-root users.
 RUN chmod o+x /root && chmod -R a+rX /root/.local/share/uv
+
+# Allow non-root users to write into the /flagos venv (build-infra runtime image
+# creates it as root).
+RUN chmod -R a+rwX /flagos
 
 ARG USERNAME=user
 ARG USER_UID=1000
