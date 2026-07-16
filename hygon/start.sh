@@ -19,6 +19,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# DEV_REPO_ROOT: root of FlagGemsTerminalDevContainer (contains build-infra submodule)
+DEV_REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# REPO_ROOT: FlagGems source tree used as build context and workspace mount
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 RUNTIME_IMAGE="flaggems-hygon:runtime"
@@ -88,26 +91,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Step 1: runtime image ─────────────────────────────────────────
-# Dockerfile comes from build-infra rather than the FlagGems checkout.
-readonly BUILD_INFRA_URL="https://gitcode.com/flagos-ai/build-infra.git"
-readonly BUILD_INFRA_DIR="${HOME}/.cache/build-infra"
-
-sync_build_infra() {
-    if [[ -d "$BUILD_INFRA_DIR/.git" ]]; then
-        print_step "更新 build-infra: git pull..."
-        git -C "$BUILD_INFRA_DIR" pull --ff-only --quiet \
-            || print_warn "build-infra pull 失败，继续使用本地缓存"
-    else
-        print_step "克隆 build-infra → ${BUILD_INFRA_DIR}"
-        git clone --depth=1 "$BUILD_INFRA_URL" "$BUILD_INFRA_DIR"
-    fi
-}
+# Dockerfile comes from the build-infra submodule.
+readonly BUILD_INFRA_DIR="${DEV_REPO_ROOT}/build-infra"
 
 if $FORCE_REBUILD_RUNTIME || ! image_exists "$RUNTIME_IMAGE"; then
     $FORCE_REBUILD_RUNTIME \
         && print_step "强制重新构建 runtime 镜像: $RUNTIME_IMAGE" \
         || print_step "runtime 镜像不存在，开始构建: $RUNTIME_IMAGE"
-    sync_build_infra
     docker build \
         --target runtime \
         -t "$RUNTIME_IMAGE" \
