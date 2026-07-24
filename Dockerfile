@@ -1,13 +1,17 @@
 # ============================================================
-# FlagGems — Hygon terminal development image
+# FlagGems — terminal development image (NVIDIA + Hygon)
 #
 # Layers development tools on top of the pre-built runtime
-# image produced by build-infra legacy/flaggems-hygon-26.04.
+# image.  Select the target platform via PLATFORM build-arg:
 #
-# Usage: built and launched via dev/hygon/start.sh
+#   PLATFORM=nvidia  (default)  — runtime: flaggems-nvidia:runtime
+#   PLATFORM=hygon              — runtime: flaggems-hygon:runtime
+#
+# Usage: built and launched via nvidia/start.sh or hygon/start.sh
 # ============================================================
 
-ARG RUNTIME_IMAGE=flaggems-hygon:runtime
+ARG PLATFORM=nvidia
+ARG RUNTIME_IMAGE=flaggems-${PLATFORM}:runtime
 FROM ${RUNTIME_IMAGE}
 
 ARG USERNAME=user
@@ -24,7 +28,8 @@ RUN chmod o+x /root \
     && chown -R "${USER_UID}:${USER_GID}" /flagos
 
 # ------------------------------------------------------------------
-# Switch apt sources to Aliyun mirror (Ubuntu 26.04 plucky)
+# Switch apt sources to Aliyun mirror
+# (works for both Ubuntu 24.04 noble and 26.04 plucky)
 # ------------------------------------------------------------------
 RUN sed -i \
         -e 's|http://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
@@ -36,8 +41,12 @@ RUN sed -i \
         /etc/apt/sources.list
 
 # ------------------------------------------------------------------
-# System packages: sudo, zsh, misc tools
+# System packages: common tools + platform-specific extras
+#
+# NVIDIA extras: python3-pip, clang-format, openssh-client,
+#                pre-commit / flake8 / black / isort (via pip)
 # ------------------------------------------------------------------
+ARG PLATFORM
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         sudo \
@@ -50,6 +59,16 @@ RUN apt-get update \
         ripgrep \
         fd-find \
         gh \
+        $([ "$PLATFORM" = "nvidia" ] && echo "python3-pip clang-format openssh-client") \
+    && if [ "$PLATFORM" = "nvidia" ]; then \
+        /usr/bin/pip3 install --no-cache-dir --break-system-packages \
+            --timeout 120 --retries 5 \
+            --index-url https://mirrors.aliyun.com/pypi/simple/ \
+            pre-commit==3.7.1 \
+            flake8==7.1.0 \
+            black==23.7.0 \
+            isort==5.12.0; \
+       fi \
     && groupadd --gid "$USER_GID" "$USERNAME" \
     && useradd --uid "$USER_UID" --gid "$USER_GID" -m -s /usr/bin/zsh "$USERNAME" \
     && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/$USERNAME" \
@@ -85,4 +104,4 @@ RUN curl -fsSL --retry 3 \
 # ------------------------------------------------------------------
 USER $USERNAME
 
-WORKDIR /workspace/FlagGems
+WORKDIR /workspace

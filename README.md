@@ -8,18 +8,18 @@ A terminal development container environment for [FlagGems](https://github.com/F
 
 ```
 FlagGemsTerminalDevContainer/
+├── Dockerfile            # unified dev image (NVIDIA + Hygon via ARG PLATFORM)
 ├── build-infra/          # submodule — runtime image Dockerfiles
 │   └── legacy/
 │       ├── flaggems-nvidia-13.3   # NVIDIA CUDA 13.3 runtime Dockerfile
 │       └── flaggems-hygon-26.04   # Hygon DTK 26.04 runtime Dockerfile
-├── nvidia/
-│   ├── Dockerfile        # dev image (dev tools layered on top of runtime)
-│   ├── start.sh          # one-shot launch script
+├── common/
+│   ├── lib.sh            # shared shell logic (arg parsing, build, run)
 │   └── setup.sh          # runs once inside a new container to install zsh/nvim plugins
+├── nvidia/
+│   └── start.sh          # NVIDIA launcher — sources common/lib.sh
 └── hygon/
-    ├── Dockerfile
-    ├── start.sh
-    └── setup.sh
+    └── start.sh          # Hygon launcher — sources common/lib.sh
 ```
 
 ## Prerequisites
@@ -157,4 +157,4 @@ docker rm flaggems-nvidia-dev-$(id -un)
 
 The runtime image Dockerfile is sourced from the [build-infra](https://gitcode.com/flagos-ai/build-infra.git) submodule (`legacy/` directory). The FlagGems source tree is used as the Docker build context, producing a runtime image that contains a `/flagos` virtualenv with FlagGems installed.
 
-The dev image layers on top of the runtime image: development tools (zsh, nvim, gh, etc.), a non-root user whose uid/gid match the host user, the Claude Code CLI, and a permission fix that allows the non-root user to write into the `/flagos` venv.
+The dev image (`Dockerfile` at the repo root) layers on top of the runtime image and is shared across platforms. Pass `--build-arg PLATFORM=nvidia|hygon` to select platform-specific packages. It installs: development tools (zsh, nvim, gh, etc.), a non-root user whose uid/gid match the host user, the Claude Code CLI, and a permission fix that allows the non-root user to write into the `/flagos` venv. NVIDIA additionally gets `python3-pip`, `clang-format`, and the pre-commit toolchain (`pre-commit`, `flake8`, `black`, `isort`).

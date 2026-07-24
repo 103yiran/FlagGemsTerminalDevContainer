@@ -8,18 +8,18 @@
 
 ```
 FlagGemsTerminalDevContainer/
+├── Dockerfile            # 统一 dev 镜像（NVIDIA + Hygon，通过 ARG PLATFORM 区分）
 ├── build-infra/          # submodule: runtime 镜像 Dockerfile 来源
 │   └── legacy/
 │       ├── flaggems-nvidia-13.3   # NVIDIA CUDA 13.3 runtime Dockerfile
 │       └── flaggems-hygon-26.04   # Hygon DTK 26.04 runtime Dockerfile
-├── nvidia/
-│   ├── Dockerfile        # dev 镜像（在 runtime 基础上叠加开发工具）
-│   ├── start.sh          # 一键启动脚本
+├── common/
+│   ├── lib.sh            # 公共 shell 逻辑（参数解析、镜像构建、容器启动）
 │   └── setup.sh          # 容器首次启动时运行，安装 zsh/nvim 插件
+├── nvidia/
+│   └── start.sh          # NVIDIA 启动脚本，source common/lib.sh
 └── hygon/
-    ├── Dockerfile
-    ├── start.sh
-    └── setup.sh
+    └── start.sh          # Hygon 启动脚本，source common/lib.sh
 ```
 
 ## 前置条件
@@ -157,4 +157,4 @@ docker rm flaggems-nvidia-dev-$(id -un)
 
 runtime 镜像的 Dockerfile 由 [build-infra](https://gitcode.com/flagos-ai/build-infra.git) submodule 提供（`legacy/` 目录下），以 FlagGems 源码目录为 build context 进行构建，产出包含 `/flagos` 虚拟环境的 runtime 镜像。
 
-dev 镜像在 runtime 基础上叠加：开发工具（zsh、nvim、gh 等）、非 root 用户（uid/gid 与宿主机一致）、Claude Code CLI，以及对 `/flagos` venv 的写权限修正。
+dev 镜像（根目录 `Dockerfile`）跨平台共用，通过 `--build-arg PLATFORM=nvidia|hygon` 区分平台特定内容。镜像在 runtime 基础上叠加：开发工具（zsh、nvim、gh 等）、非 root 用户（uid/gid 与宿主机一致）、Claude Code CLI，以及对 `/flagos` venv 的写权限修正。NVIDIA 平台额外安装 `python3-pip`、`clang-format` 和 pre-commit 工具链（`pre-commit`、`flake8`、`black`、`isort`）。
