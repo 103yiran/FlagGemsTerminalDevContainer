@@ -25,13 +25,15 @@ FlagGemsTerminalDevContainer/
 ## Prerequisites
 
 - Docker installed and accessible
-- FlagGems source tree checked out as a sibling of this repository:
+- FlagGems source tree checked out as a sibling of this repository (required for building the runtime image):
 
   ```
   parent/
-  ├── FlagGems/                      # FlagGems source
+  ├── FlagGems/                      # FlagGems source (runtime image build context)
   └── FlagGemsTerminalDevContainer/  # this repo
   ```
+
+  Additional repos (e.g. `FlagTree`) can be mounted at runtime via `--repo` — they do not need to follow any specific layout.
 
 - NVIDIA platform: NVIDIA Container Toolkit installed on the host
 - Hygon platform: `/dev/kfd`, `/dev/dri` devices available on the host and `/opt/hyhal` mounted
@@ -64,9 +66,9 @@ git submodule update --init
 
 On the first run the script will:
 
-1. Build `flaggems-{platform}:runtime` from `build-infra/legacy/flaggems-{platform}`
+1. Build `flaggems-{platform}:runtime` from `build-infra/legacy/flaggems-{platform}` (uses `../FlagGems` as build context)
 2. Build `flaggems-{platform}:dev` from the local `Dockerfile`
-3. Create a detached container with the FlagGems source mounted at `/workspace/FlagGems`
+3. Create a detached container with repositories bind-mounted under `/workspace/`
 4. Run `setup.sh` inside the container to install oh-my-zsh, zsh plugins, and LazyVim
 5. Drop you into an interactive zsh session via `docker exec -it`
 
@@ -83,8 +85,11 @@ Both platforms share the same interface:
 | `--rebuild-runtime` | Force-rebuild the runtime image |
 | `--rebuild-dev` | Force-rebuild the dev image |
 | `--rebuild` | Force-rebuild both images |
+| `--repo PATH` | Mount a repository at `/workspace/<name>` (repeatable; default: `../FlagGems`) |
 | `-c CMD` / `--cmd CMD` | Command to exec into the container (default: `zsh`) |
 | `--ssh-agent` | Use SSH agent forwarding instead of mounting `~/.ssh` (NVIDIA only) |
+
+The container's working directory is set to the first `--repo` path (or `/workspace/FlagGems` by default).
 
 Examples:
 
@@ -94,6 +99,12 @@ Examples:
 
 # Rebuild only the dev image (faster — skips the runtime build)
 ./nvidia/start.sh --rebuild-dev
+
+# Mount FlagTree instead of FlagGems
+./nvidia/start.sh --repo ../FlagTree
+
+# Mount multiple repos at once (workdir = first repo)
+./nvidia/start.sh --repo ../FlagTree --repo ../FlagGems
 
 # Run a specific command instead of dropping into zsh
 ./nvidia/start.sh -c "python train.py"
@@ -113,7 +124,7 @@ Examples:
 | AI tooling | Claude Code CLI (`claude` command) |
 | Utilities | `ripgrep`, `fd`, `gh` (GitHub CLI), passwordless `sudo` |
 
-The FlagGems source tree is bind-mounted at `/workspace/FlagGems`, so edits on the host are immediately visible inside the container.
+The FlagGems source tree is bind-mounted at `/workspace/FlagGems` by default. Use `--repo` to mount any other repository at `/workspace/<name>` instead — edits on the host are immediately visible inside the container.
 
 The container's `$HOME` is mapped to `~/<container-name>/` on the host, so `.claude` config, zsh history, and other user data persist across container restarts.
 

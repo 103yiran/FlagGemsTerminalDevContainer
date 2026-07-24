@@ -25,13 +25,15 @@ FlagGemsTerminalDevContainer/
 ## 前置条件
 
 - Docker（已安装并可访问）
-- FlagGems 源码仓库，与本仓库同级：
+- FlagGems 源码仓库，与本仓库同级（用于构建 runtime 镜像）：
 
   ```
   parent/
-  ├── FlagGems/                    # FlagGems 源码
+  ├── FlagGems/                    # FlagGems 源码（runtime 镜像 build context）
   └── FlagGemsTerminalDevContainer/  # 本仓库
   ```
+
+  其他仓库（如 `FlagTree`）可通过 `--repo` 参数在运行时挂载，无需遵循特定目录结构。
 
 - NVIDIA 平台：宿主机已安装 NVIDIA Container Toolkit
 - Hygon 平台：宿主机已挂载 `/dev/kfd`、`/dev/dri` 等设备，`/opt/hyhal` 已就位
@@ -64,9 +66,9 @@ git submodule update --init
 
 首次运行时，脚本会依次：
 
-1. 用 `build-infra/legacy/flaggems-{platform}` 构建 `flaggems-{platform}:runtime` 镜像
+1. 用 `build-infra/legacy/flaggems-{platform}` 构建 `flaggems-{platform}:runtime` 镜像（以 `../FlagGems` 为 build context）
 2. 用本目录的 `Dockerfile` 构建 `flaggems-{platform}:dev` 镜像
-3. 创建容器，挂载 FlagGems 源码至 `/workspace/FlagGems`
+3. 创建容器，将仓库挂载到 `/workspace/` 下
 4. 在容器内运行 `setup.sh`，安装 oh-my-zsh、zsh 插件和 LazyVim
 5. 执行 `docker exec -it` 进入 zsh
 
@@ -83,8 +85,11 @@ git submodule update --init
 | `--rebuild-runtime` | 强制重新构建 runtime 镜像 |
 | `--rebuild-dev` | 强制重新构建 dev 镜像 |
 | `--rebuild` | 强制重新构建 runtime + dev 两个镜像 |
+| `--repo PATH` | 挂载仓库到 `/workspace/<name>`，可重复使用（默认：`../FlagGems`） |
 | `-c CMD` / `--cmd CMD` | 进入容器时执行的命令（默认：`zsh`） |
 | `--ssh-agent` | 使用 SSH agent 转发（仅 NVIDIA；默认挂载 `~/.ssh`） |
+
+容器的工作目录为第一个 `--repo` 对应的容器路径（默认为 `/workspace/FlagGems`）。
 
 示例：
 
@@ -94,6 +99,12 @@ git submodule update --init
 
 # 仅重建 dev 镜像（runtime 不变，速度更快）
 ./nvidia/start.sh --rebuild-dev
+
+# 挂载 FlagTree 替代 FlagGems
+./nvidia/start.sh --repo ../FlagTree
+
+# 同时挂载多个仓库（工作目录为第一个）
+./nvidia/start.sh --repo ../FlagTree --repo ../FlagGems
 
 # 以特定命令进入容器（不启动 zsh）
 ./nvidia/start.sh -c "python train.py"
@@ -113,7 +124,7 @@ git submodule update --init
 | AI 工具 | Claude Code CLI（`claude` 命令） |
 | 其他 | `ripgrep`、`fd`、`gh`（GitHub CLI）、`sudo`（无密码） |
 
-FlagGems 源码以卷挂载方式映射到 `/workspace/FlagGems`，宿主机修改实时可见。
+默认将 FlagGems 源码挂载到 `/workspace/FlagGems`。通过 `--repo` 可将任意仓库挂载到 `/workspace/<name>`，宿主机修改实时可见。
 
 容器的 `$HOME` 目录映射到宿主机的 `~/<容器名>/`，`.claude` 配置、zsh 历史等均持久化保存。
 

@@ -15,14 +15,16 @@
 #                       ssh-agent running with keys loaded on the host
 #
 # Usage:
-#   ./nvidia/start.sh                    # default container name
-#   ./nvidia/start.sh -n my_container    # custom container name
-#   ./nvidia/start.sh -f                 # force-recreate container
-#   ./nvidia/start.sh --rebuild-runtime  # force-rebuild runtime image
-#   ./nvidia/start.sh --rebuild-dev      # force-rebuild dev image
-#   ./nvidia/start.sh --rebuild          # force-rebuild both images
-#   ./nvidia/start.sh --ssh-agent        # use SSH agent forwarding instead
-#   ./nvidia/start.sh -c "python a.py"   # exec command (default: zsh)
+#   ./nvidia/start.sh                         # default container name, mounts FlagGems
+#   ./nvidia/start.sh -n my_container         # custom container name
+#   ./nvidia/start.sh -f                      # force-recreate container
+#   ./nvidia/start.sh --rebuild-runtime       # force-rebuild runtime image
+#   ./nvidia/start.sh --rebuild-dev           # force-rebuild dev image
+#   ./nvidia/start.sh --rebuild               # force-rebuild both images
+#   ./nvidia/start.sh --ssh-agent             # use SSH agent forwarding instead
+#   ./nvidia/start.sh -c "python a.py"        # exec command (default: zsh)
+#   ./nvidia/start.sh --repo ../FlagTree      # mount FlagTree instead of FlagGems
+#   ./nvidia/start.sh --repo ../A --repo ../B # mount multiple repos
 
 set -euo pipefail
 
@@ -39,6 +41,7 @@ FORCE_REBUILD_RUNTIME=false
 FORCE_REBUILD_DEV=false
 EXEC_COMMAND=(zsh)
 SSH_MODE="agent"   # "mount" | "agent"
+REPO_MOUNTS=()     # entries: "host_abs_path:container_path"; default: FlagGems
 
 readonly RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m' CYAN='\033[0;36m' NC='\033[0m'
@@ -62,6 +65,8 @@ show_help() {
         --rebuild           强制重新构建 runtime + dev 两个镜像
         --ssh-agent         使用 SSH agent 转发（默认: 挂载 ~/.ssh）
     -c, --cmd COMMAND       exec 进容器时执行的命令（默认: zsh）
+        --repo PATH         挂载仓库到 /workspace/<name>，可重复使用
+                            （默认: ../FlagGems → /workspace/FlagGems）
 
 SSH 说明:
     默认将宿主机 ~/.ssh 以只读方式挂载到容器内，密钥作为文件存在。
@@ -69,13 +74,16 @@ SSH 说明:
     需要宿主机已运行 ssh-agent 并通过 ssh-add 加载密钥。
 
 示例:
-    start.sh                        # 默认容器名，按需自动构建
-    start.sh my_dev                 # 自定义容器名
-    start.sh -f                     # 强制删除并重建容器
-    start.sh --rebuild              # 重新构建 runtime 和 dev 镜像
-    start.sh --rebuild-dev          # 仅重新构建 dev 镜像（runtime 不变）
-    start.sh --ssh-agent            # 使用 SSH agent 转发
-    start.sh -c "python train.py"   # exec 执行特定命令
+    start.sh                                # 默认容器名，挂载 FlagGems
+    start.sh --repo ../FlagTree             # 挂载 FlagTree 替代 FlagGems
+    start.sh --repo ../FlagTree \
+             --repo ../FlagGems             # 同时挂载多个仓库
+    start.sh my_dev                         # 自定义容器名
+    start.sh -f                             # 强制删除并重建容器
+    start.sh --rebuild                      # 重新构建 runtime 和 dev 镜像
+    start.sh --rebuild-dev                  # 仅重新构建 dev 镜像（runtime 不变）
+    start.sh --ssh-agent                    # 使用 SSH agent 转发
+    start.sh -c "python train.py"           # exec 执行特定命令
 EOF
     exit 0
 }
@@ -92,6 +100,10 @@ while [[ $# -gt 0 ]]; do
         --rebuild-dev)     FORCE_REBUILD_DEV=true;     shift ;;
         --rebuild)         FORCE_REBUILD_RUNTIME=true; FORCE_REBUILD_DEV=true; shift ;;
         --ssh-agent)       SSH_MODE="agent";           shift ;;
+        --repo)
+            _rhost="$(cd "$2" && pwd)"
+            REPO_MOUNTS+=("${_rhost}:/workspace/$(basename "${_rhost}")")
+            shift 2 ;;
         -c|--cmd)          EXEC_COMMAND=($2);          shift 2 ;;
         -n|--name)         CONTAINER_NAME="$2";        shift 2 ;;
         -*)                print_error "未知选项: $1"; show_help ;;
@@ -104,6 +116,18 @@ while [[ $# -gt 0 ]]; do
             shift ;;
     esac
 done
+
+# Default workspace repo when none specified via --repo
+if [[ ${#REPO_MOUNTS[@]} -eq 0 ]]; then
+    REPO_MOUNTS+=("${FLAGGEMS_ROOT}:/workspace/FlagGems")
+fi
+
+# Build -v args and derive container workdir from the first repo
+REPO_MOUNT_ARGS=()
+for _pair in "${REPO_MOUNTS[@]}"; do
+    REPO_MOUNT_ARGS+=(-v "$_pair")
+done
+WORKSPACE_DIR="${REPO_MOUNTS[0]#*:}"   # container path of the first repo
 
 # ── Step 1: runtime image ────────────────────────────────────────
 # Dockerfile comes from the build-infra submodule.
@@ -182,7 +206,10 @@ echo -e "${CYAN}容器信息:${NC}"
 echo -e "${CYAN}  名称:         ${CONTAINER_NAME}${NC}"
 echo -e "${CYAN}  镜像:         ${DEV_IMAGE}${NC}"
 echo -e "${CYAN}  runtime 基础: ${RUNTIME_IMAGE}${NC}"
-echo -e "${CYAN}  FlagGems:     ${FLAGGEMS_ROOT}${NC}"
+for _pair in "${REPO_MOUNTS[@]}"; do
+    echo -e "${CYAN}  挂载:         ${_pair}${NC}"
+done
+echo -e "${CYAN}  工作目录:     ${WORKSPACE_DIR}${NC}"
 echo -e "${CYAN}  SSH 模式:     ${SSH_MODE}${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
@@ -249,7 +276,7 @@ if ! container_exists; then
         --ulimit nofile=1048576:1048576 \
         \
         `# mounts` \
-        -v "${FLAGGEMS_ROOT}":/workspace/FlagGems \
+        "${REPO_MOUNT_ARGS[@]}" \
         -v "${CONTAINER_HOME_HOST}":/home/"$(id -un)" \
         "${SSH_ARGS[@]}" \
         \
@@ -257,7 +284,7 @@ if ! container_exists; then
         -e PIP_USER=0 \
         \
         `# workdir` \
-        -w /workspace/FlagGems \
+        -w "${WORKSPACE_DIR}" \
         \
         --entrypoint sleep \
         "${DEV_IMAGE}" infinity
