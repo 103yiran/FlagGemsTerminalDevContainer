@@ -10,18 +10,18 @@
 ARG RUNTIME_IMAGE=flaggems-nvidia:runtime
 FROM ${RUNTIME_IMAGE}
 
-# Allow non-root users to execute the uv-managed Python interpreter.
-# The runtime image copies uv's Python into /root/.local; /root itself
-# is mode 700 by default, blocking traversal for non-root users.
-RUN chmod o+x /root && chmod -R a+rX /root/.local/share/uv
-
-# Allow non-root users to write into the /flagos venv (build-infra runtime image
-# creates it as root).
-RUN chmod -R a+rwX /flagos
-
 ARG USERNAME=user
 ARG USER_UID=1000
 ARG USER_GID=1000
+
+# Transfer ownership of the /flagos venv and uv's Python cache to the
+# non-root user.  chown is used rather than chmod so that execute bits
+# on every binary are inherited correctly regardless of how they were
+# originally set by the runtime image.
+# /root itself must remain traversable for uv to resolve its Python path.
+RUN chmod o+x /root \
+    && chown -R "${USER_UID}:${USER_GID}" /root/.local/share/uv \
+    && chown -R "${USER_UID}:${USER_GID}" /flagos
 
 # ------------------------------------------------------------------
 # Switch apt sources to Aliyun mirror (Ubuntu 24.04 noble)
