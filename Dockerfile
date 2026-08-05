@@ -1,5 +1,5 @@
 # ============================================================
-# FlagGems — terminal development image (NVIDIA + Hygon + Cambricon)
+# FlagGems — terminal development image (NVIDIA + Hygon + Cambricon + Ascend)
 #
 # Layers development tools on top of FlagOS base images from Harbor.
 # Select the target platform via PLATFORM and BASE_IMAGE_TAG build-args:
@@ -7,10 +7,12 @@
 #   PLATFORM=nvidia     (default)  — toolkit: cuda13.3
 #   PLATFORM=hygon                 — toolkit: dtk26.04
 #   PLATFORM=cambricon             — toolkit: neuware4.7.2
+#   PLATFORM=ascend                — toolkit: cann9.0.0
 #   TOOLKIT_VERSION                — override toolkit version if needed
 #   BASE_IMAGE_TAG=2.1.1           — FlagOS base image version
 #
-# Usage: built and launched via nvidia/start.sh, hygon/start.sh, or cambricon/start.sh
+# Usage: built and launched via nvidia/start.sh, hygon/start.sh,
+#        cambricon/start.sh, or ascend/start.sh
 # ============================================================
 
 ARG PLATFORM=nvidia
@@ -20,10 +22,12 @@ ARG BASE_IMAGE_REGISTRY=harbor.baai.ac.cn/flagos-base
 ARG NVIDIA_TOOLKIT=cuda13.3
 ARG HYGON_TOOLKIT=dtk26.04
 ARG CAMBRICON_TOOLKIT=neuware4.7.2
+ARG ASCEND_TOOLKIT=cann9.0.0
 
 FROM ${BASE_IMAGE_REGISTRY}/flagos-base-nvidia-${NVIDIA_TOOLKIT}:${BASE_IMAGE_TAG} AS base-nvidia
 FROM ${BASE_IMAGE_REGISTRY}/flagos-base-hygon-${HYGON_TOOLKIT}:${BASE_IMAGE_TAG} AS base-hygon
 FROM ${BASE_IMAGE_REGISTRY}/flagos-base-cambricon-${CAMBRICON_TOOLKIT}:${BASE_IMAGE_TAG} AS base-cambricon
+FROM ${BASE_IMAGE_REGISTRY}/flagos-base-ascend-${ASCEND_TOOLKIT}:${BASE_IMAGE_TAG} AS base-ascend
 
 FROM base-${PLATFORM} AS base
 

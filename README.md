@@ -1,6 +1,6 @@
 # FlagGemsTerminalDevContainer
 
-A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, and Cambricon hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, and a full code-quality toolchain out of the box.
+A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, Cambricon, and Ascend hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, and a full code-quality toolchain out of the box.
 
 [中文文档](README_cn.md)
 
@@ -8,7 +8,7 @@ A terminal development container environment for [FlagGems](https://github.com/F
 
 ```
 FlagGemsTerminalDevContainer/
-├── Dockerfile            # unified dev image (NVIDIA + Hygon + Cambricon via ARG PLATFORM)
+├── Dockerfile            # unified dev image (NVIDIA + Hygon + Cambricon + Ascend via ARG PLATFORM)
 ├── common/
 │   ├── lib.sh            # shared shell logic (arg parsing, build, run)
 │   └── setup.sh          # runs once inside a new container to install zsh/nvim plugins
@@ -16,8 +16,10 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # NVIDIA launcher — sources common/lib.sh
 ├── hygon/
 │   └── start.sh          # Hygon launcher — sources common/lib.sh
-└── cambricon/
-    └── start.sh          # Cambricon launcher — sources common/lib.sh
+├── cambricon/
+│   └── start.sh          # Cambricon launcher — sources common/lib.sh
+└── ascend/
+    └── start.sh          # Ascend launcher — sources common/lib.sh
 ```
 
 ## Prerequisites
@@ -36,6 +38,7 @@ FlagGemsTerminalDevContainer/
 - NVIDIA platform: NVIDIA Container Toolkit installed on the host
 - Hygon platform: `/dev/kfd`, `/dev/dri` devices available on the host and `/opt/hyhal` mounted
 - Cambricon platform: `/dev/cambricon_dev*` and `/dev/cambricon_ctl` devices available on the host
+- Ascend platform: `/dev/davinci0`, `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` devices available on the host; `/usr/local/Ascend/driver`, `/usr/local/dcmi`, and `/usr/local/sbin/npu-smi` present on the host
 
 ## Quick start
 
@@ -59,6 +62,12 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 
 ```bash
 ./cambricon/start.sh
+```
+
+### Launch (Ascend)
+
+```bash
+./ascend/start.sh
 ```
 
 On the first run the script will:

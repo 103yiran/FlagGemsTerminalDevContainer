@@ -2,13 +2,13 @@
 
 [English](README.md)
 
-为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境，支持 NVIDIA、Hygon、Cambricon 三种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code 及完整的代码质量工具链。
+为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境，支持 NVIDIA、Hygon、Cambricon、Ascend 四种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code 及完整的代码质量工具链。
 
 ## 目录结构
 
 ```
 FlagGemsTerminalDevContainer/
-├── Dockerfile            # 统一 dev 镜像（NVIDIA + Hygon + Cambricon，通过 ARG PLATFORM 区分）
+├── Dockerfile            # 统一 dev 镜像（NVIDIA + Hygon + Cambricon + Ascend，通过 ARG PLATFORM 区分）
 ├── common/
 │   ├── lib.sh            # 公共 shell 逻辑（参数解析、镜像构建、容器启动）
 │   └── setup.sh          # 容器首次启动时运行，安装 zsh/nvim 插件
@@ -16,8 +16,10 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # NVIDIA 启动脚本，source common/lib.sh
 ├── hygon/
 │   └── start.sh          # Hygon 启动脚本，source common/lib.sh
-└── cambricon/
-    └── start.sh          # Cambricon 启动脚本，source common/lib.sh
+├── cambricon/
+│   └── start.sh          # Cambricon 启动脚本，source common/lib.sh
+└── ascend/
+    └── start.sh          # Ascend 启动脚本，source common/lib.sh
 ```
 
 ## 前置条件
@@ -36,6 +38,7 @@ FlagGemsTerminalDevContainer/
 - NVIDIA 平台：宿主机已安装 NVIDIA Container Toolkit
 - Hygon 平台：宿主机已挂载 `/dev/kfd`、`/dev/dri` 等设备，`/opt/hyhal` 已就位
 - Cambricon 平台：宿主机已挂载 `/dev/cambricon_dev*` 及 `/dev/cambricon_ctl` 设备
+- Ascend 平台：宿主机已挂载 `/dev/davinci0`、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` 设备，且 `/usr/local/Ascend/driver`、`/usr/local/dcmi`、`/usr/local/sbin/npu-smi` 已就位
 
 ## 快速开始
 
@@ -59,6 +62,12 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 
 ```bash
 ./cambricon/start.sh
+```
+
+### 启动容器（Ascend）
+
+```bash
+./ascend/start.sh
 ```
 
 首次运行时，脚本会依次：
