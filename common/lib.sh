@@ -8,7 +8,7 @@
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
 #   CONTAINER_NAME    (default: flaggems-${PLATFORM}-dev-$(id -un))
 #   BASE_IMAGE_TAG    (default: 2.1.1)
-#   TOOLKIT_VERSION   (optional: override default toolkit version for platform)
+#   TOOLKIT_VERSION   (optional: override toolkit version, passed as TOOLKIT build-arg)
 #
 # After sourcing, callers must define:
 #   platform_hardware_args   function — echoes platform-specific docker run flags
@@ -192,15 +192,7 @@ _build_dev() {
         )
 
         if [[ -n "${TOOLKIT_VERSION:-}" ]]; then
-            if [[ "$PLATFORM" == "nvidia" ]]; then
-                build_args+=(--build-arg NVIDIA_TOOLKIT="$TOOLKIT_VERSION")
-            elif [[ "$PLATFORM" == "hygon" ]]; then
-                build_args+=(--build-arg HYGON_TOOLKIT="$TOOLKIT_VERSION")
-            elif [[ "$PLATFORM" == "cambricon" ]]; then
-                build_args+=(--build-arg CAMBRICON_TOOLKIT="$TOOLKIT_VERSION")
-            elif [[ "$PLATFORM" == "ascend" ]]; then
-                build_args+=(--build-arg ASCEND_TOOLKIT="$TOOLKIT_VERSION")
-            fi
+            build_args+=(--build-arg TOOLKIT="$TOOLKIT_VERSION")
         fi
 
         docker build \
