@@ -4,14 +4,13 @@
 # Callers must set these variables BEFORE sourcing this file:
 #
 #   PLATFORM          nvidia | hygon
-#   RUNTIME_DOCKERFILE  path to the build-infra Dockerfile for the runtime image
-#   FLAGGEMS_ROOT     absolute path to FlagGems source (runtime build context)
 #
 # Callers may also pre-set these to override defaults:
 #
-#   RUNTIME_IMAGE     (default: flaggems-${PLATFORM}:runtime)
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
 #   CONTAINER_NAME    (default: flaggems-${PLATFORM}-dev-$(id -un))
+#   BASE_IMAGE_TAG    (default: 2.1.1)
+#   TOOLKIT_VERSION   (optional: override default toolkit version for platform)
 #
 # After sourcing, callers must define:
 #
@@ -23,13 +22,13 @@
 set -euo pipefail
 
 # ── Defaults (callers may override before sourcing) ───────────────
-RUNTIME_IMAGE="${RUNTIME_IMAGE:-flaggems-${PLATFORM}:runtime}"
 DEV_IMAGE="${DEV_IMAGE:-flaggems-${PLATFORM}:dev}"
 CONTAINER_NAME="${CONTAINER_NAME:-flaggems-${PLATFORM}-dev-$(id -un)}"
+BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.1}"
+BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-base}"
 
 # ── Runtime state ─────────────────────────────────────────────────
 FORCE_RECREATE=false
-FORCE_REBUILD_RUNTIME=false
 FORCE_REBUILD_DEV=false
 EXEC_COMMAND=(zsh)
 SSH_MODE="agent"   # "mount" | "agent"
@@ -59,13 +58,13 @@ show_help() {
     -h, --help              显示帮助信息
     -n, --name NAME         指定容器名称 (默认: flaggems-${PLATFORM}-dev-<username>)
     -f, --force             强制重建容器
-        --rebuild-runtime   强制重新构建 runtime 镜像
         --rebuild-dev       强制重新构建 dev 镜像
-        --rebuild           强制重新构建 runtime + dev 两个镜像
+        --rebuild           强制重新构建 dev 镜像（与 --rebuild-dev 等价）
         --ssh-agent         使用 SSH agent 转发（默认: 挂载 ~/.ssh）
     -c, --cmd COMMAND       exec 进容器时执行的命令（默认: zsh）
         --repo PATH         挂载仓库到 /workspace/<name>，可重复使用
                             （默认: FlagGems → /workspace/FlagGems）
+        --base-tag VERSION  指定 FlagOS base 镜像版本（默认: 2.1.1）
 
 SSH 说明:
     默认将宿主机 ~/.ssh 以只读方式挂载到容器内，密钥作为文件存在。
@@ -79,10 +78,10 @@ SSH 说明:
              --repo ../FlagGems             # 同时挂载多个仓库
     start.sh my_dev                         # 自定义容器名
     start.sh -f                             # 强制删除并重建容器
-    start.sh --rebuild                      # 重新构建 runtime 和 dev 镜像
-    start.sh --rebuild-dev                  # 仅重新构建 dev 镜像（runtime 不变）
+    start.sh --rebuild                      # 重新构建 dev 镜像
     start.sh --ssh-agent                    # 使用 SSH agent 转发
     start.sh -c "python train.py"           # exec 执行特定命令
+    start.sh --base-tag 2.2.0               # 使用 2.2.0 版本的基础镜像
 EOF
     exit 0
 }
@@ -94,10 +93,10 @@ _parse_args() {
         case $1 in
             -h|--help)         show_help ;;
             -f|--force)        FORCE_RECREATE=true;        shift ;;
-            --rebuild-runtime) FORCE_REBUILD_RUNTIME=true; shift ;;
             --rebuild-dev)     FORCE_REBUILD_DEV=true;     shift ;;
-            --rebuild)         FORCE_REBUILD_RUNTIME=true; FORCE_REBUILD_DEV=true; shift ;;
+            --rebuild)         FORCE_REBUILD_DEV=true;     shift ;;
             --ssh-agent)       SSH_MODE="agent";           shift ;;
+            --base-tag)        BASE_IMAGE_TAG="$2";        shift 2 ;;
             --repo)
                 local _rhost
                 _rhost="$(cd "$2" && pwd)"
@@ -180,27 +179,6 @@ _build_ssh_args() {
     fi
 }
 
-# ── Build: runtime image ──────────────────────────────────────────
-_build_runtime() {
-    local build_infra_dir="$1"
-    if $FORCE_REBUILD_RUNTIME || ! image_exists "$RUNTIME_IMAGE"; then
-        $FORCE_REBUILD_RUNTIME \
-            && print_step "强制重新构建 runtime 镜像: $RUNTIME_IMAGE" \
-            || print_step "runtime 镜像不存在，开始构建: $RUNTIME_IMAGE"
-        docker build \
-            --target runtime \
-            -t "$RUNTIME_IMAGE" \
-            -f "${build_infra_dir}/${RUNTIME_DOCKERFILE}" \
-            "$FLAGGEMS_ROOT"
-        print_success "runtime 镜像构建完成: $RUNTIME_IMAGE"
-        # runtime 重建意味着 dev 镜像和容器都需要重建
-        FORCE_REBUILD_DEV=true
-        FORCE_RECREATE=true
-    else
-        print_info "runtime 镜像已存在，跳过: $RUNTIME_IMAGE"
-    fi
-}
-
 # ── Build: dev image ──────────────────────────────────────────────
 _build_dev() {
     local script_dir="$1"
@@ -209,12 +187,27 @@ _build_dev() {
         $FORCE_REBUILD_DEV \
             && print_step "强制重新构建 dev 镜像: $DEV_IMAGE" \
             || print_step "dev 镜像不存在，开始构建: $DEV_IMAGE"
+
+        local build_args=(
+            --build-arg PLATFORM="$PLATFORM"
+            --build-arg BASE_IMAGE_TAG="$BASE_IMAGE_TAG"
+            --build-arg BASE_IMAGE_REGISTRY="$BASE_IMAGE_REGISTRY"
+            --build-arg USERNAME="$(id -un)"
+            --build-arg USER_UID="$(id -u)"
+            --build-arg USER_GID="$(id -g)"
+        )
+
+        # Add toolkit version override if set by platform script
+        if [[ -n "${TOOLKIT_VERSION:-}" ]]; then
+            if [[ "$PLATFORM" == "nvidia" ]]; then
+                build_args+=(--build-arg NVIDIA_TOOLKIT="$TOOLKIT_VERSION")
+            elif [[ "$PLATFORM" == "hygon" ]]; then
+                build_args+=(--build-arg HYGON_TOOLKIT="$TOOLKIT_VERSION")
+            fi
+        fi
+
         docker build \
-            --build-arg PLATFORM="$PLATFORM" \
-            --build-arg RUNTIME_IMAGE="$RUNTIME_IMAGE" \
-            --build-arg USERNAME="$(id -un)" \
-            --build-arg USER_UID="$(id -u)" \
-            --build-arg USER_GID="$(id -g)" \
+            "${build_args[@]}" \
             -t "$DEV_IMAGE" \
             -f "${repo_root}/Dockerfile" \
             "$script_dir"
@@ -228,12 +221,24 @@ _build_dev() {
 
 # ── Print container summary ───────────────────────────────────────
 _print_summary() {
+    # Determine base image name based on platform
+    local base_image
+    if [[ "$PLATFORM" == "nvidia" ]]; then
+        local toolkit="${TOOLKIT_VERSION:-cuda13.3}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-base-nvidia-${toolkit}:${BASE_IMAGE_TAG}"
+    elif [[ "$PLATFORM" == "hygon" ]]; then
+        local toolkit="${TOOLKIT_VERSION:-dtk26.04}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-base-hygon-${toolkit}:${BASE_IMAGE_TAG}"
+    else
+        base_image="未知平台"
+    fi
+
     echo ""
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}容器信息:${NC}"
     echo -e "${CYAN}  名称:         ${CONTAINER_NAME}${NC}"
     echo -e "${CYAN}  镜像:         ${DEV_IMAGE}${NC}"
-    echo -e "${CYAN}  runtime 基础: ${RUNTIME_IMAGE}${NC}"
+    echo -e "${CYAN}  基础镜像:     ${base_image}${NC}"
     for _pair in "${REPO_MOUNTS[@]}"; do
         echo -e "${CYAN}  挂载:         ${_pair}${NC}"
     done
@@ -324,9 +329,6 @@ lib_main() {
     _parse_args "$@"
     _ensure_ssh_agent
 
-    local build_infra_dir="${repo_root}/build-infra"
-
-    _build_runtime  "$build_infra_dir"
     _build_dev      "$script_dir" "$repo_root"
     _print_summary
 

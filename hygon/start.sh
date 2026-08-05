@@ -1,22 +1,21 @@
 #!/usr/bin/env bash
 # hygon/start.sh — launch the FlagGems Hygon development container.
 #
-# Step 1: build (or skip) flaggems-hygon:runtime from
-#         build-infra legacy/flaggems-hygon-26.04  (--target runtime)
-# Step 2: build (or skip) flaggems-hygon:dev from root Dockerfile
-# Step 3: start container with -itd (detached), then exec into it
+# Step 1: build (or skip) flaggems-hygon:dev from root Dockerfile
+#         using harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04 as base
+# Step 2: start container with -itd (detached), then exec into it
 #
 # Usage:
 #   ./hygon/start.sh                         # default container name, mounts FlagGems
 #   ./hygon/start.sh -n my_container         # custom container name
 #   ./hygon/start.sh -f                      # force-recreate container
-#   ./hygon/start.sh --rebuild-runtime       # force-rebuild runtime image
 #   ./hygon/start.sh --rebuild-dev           # force-rebuild dev image
-#   ./hygon/start.sh --rebuild               # force-rebuild both images
+#   ./hygon/start.sh --rebuild               # force-rebuild dev image
 #   ./hygon/start.sh --ssh-agent             # use SSH agent forwarding instead
 #   ./hygon/start.sh -c "python a.py"        # exec command (default: zsh)
 #   ./hygon/start.sh --repo ../FlagTree      # mount FlagTree instead of FlagGems
 #   ./hygon/start.sh --repo ../A --repo ../B # mount multiple repos
+#   ./hygon/start.sh --base-tag 2.2.0        # use FlagOS base image version 2.2.0
 #
 # See common/lib.sh for full option documentation.
 
@@ -26,7 +25,8 @@ readonly FLAGGEMS_ROOT="$(cd "$SCRIPT_DIR/../../FlagGems" && pwd)"
 
 # ── Platform identity ─────────────────────────────────────────────
 PLATFORM="hygon"
-RUNTIME_DOCKERFILE="legacy/flaggems-hygon-26.04"
+# Optional: override default toolkit version (dtk26.04)
+# TOOLKIT_VERSION="dtk25.10"
 
 # ── Platform hardware flags ───────────────────────────────────────
 platform_hardware_args() {

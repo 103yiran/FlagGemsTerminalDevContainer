@@ -1,18 +1,31 @@
 # ============================================================
 # FlagGems — terminal development image (NVIDIA + Hygon)
 #
-# Layers development tools on top of the pre-built runtime
-# image.  Select the target platform via PLATFORM build-arg:
+# Layers development tools on top of FlagOS base images from Harbor.
+# Select the target platform via PLATFORM and BASE_IMAGE_TAG build-args:
 #
-#   PLATFORM=nvidia  (default)  — runtime: flaggems-nvidia:runtime
-#   PLATFORM=hygon              — runtime: flaggems-hygon:runtime
+#   PLATFORM=nvidia  (default)  — toolkit: cuda13.3
+#   PLATFORM=hygon              — toolkit: dtk26.04
+#   TOOLKIT_VERSION             — override toolkit version if needed
+#   BASE_IMAGE_TAG=2.1.1        — FlagOS base image version
 #
 # Usage: built and launched via nvidia/start.sh or hygon/start.sh
 # ============================================================
 
 ARG PLATFORM=nvidia
-ARG RUNTIME_IMAGE=flaggems-${PLATFORM}:runtime
-FROM ${RUNTIME_IMAGE}
+ARG BASE_IMAGE_TAG=2.1.1
+ARG BASE_IMAGE_REGISTRY=harbor.baai.ac.cn/flagos-base
+
+# Default toolkit versions per platform (can be overridden)
+ARG NVIDIA_TOOLKIT=cuda13.3
+ARG HYGON_TOOLKIT=dtk26.04
+
+# Select base image based on platform
+FROM ${BASE_IMAGE_REGISTRY}/flagos-base-nvidia-${NVIDIA_TOOLKIT}:${BASE_IMAGE_TAG} AS base-nvidia
+FROM ${BASE_IMAGE_REGISTRY}/flagos-base-hygon-${HYGON_TOOLKIT}:${BASE_IMAGE_TAG} AS base-hygon
+
+# Use the appropriate base for the target platform
+FROM base-${PLATFORM} AS base
 
 ARG USERNAME=user
 ARG USER_UID=1000
