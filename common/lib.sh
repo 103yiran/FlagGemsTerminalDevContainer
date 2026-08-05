@@ -192,11 +192,12 @@ _build_dev() {
             --build-arg USER_GID="$(id -g)"
         )
 
-        docker buildx build \
+        docker build \
             "${build_args[@]}" \
             -t "$DEV_IMAGE" \
             -f "${repo_root}/Dockerfile" \
-            --load \
+            --security-opt seccomp=unconfined \
+            --security-opt apparmor=unconfined \
             "$script_dir"
         print_success "dev 镜像构建完成: $DEV_IMAGE"
         FORCE_RECREATE=true
