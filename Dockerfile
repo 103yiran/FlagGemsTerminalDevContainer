@@ -112,7 +112,7 @@ RUN curl -fsSL --retry 3 \
         -o /tmp/node.tar.xz \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
-    && npm install -g @anthropic-ai/claude-code \
+    && npm install -g @anthropic-ai/claude-code tree-sitter-cli \
         --registry https://registry.npmmirror.com
 
 # ------------------------------------------------------------------
