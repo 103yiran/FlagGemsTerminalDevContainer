@@ -203,6 +203,8 @@ _build_dev() {
                 build_args+=(--build-arg NVIDIA_TOOLKIT="$TOOLKIT_VERSION")
             elif [[ "$PLATFORM" == "hygon" ]]; then
                 build_args+=(--build-arg HYGON_TOOLKIT="$TOOLKIT_VERSION")
+            elif [[ "$PLATFORM" == "cambricon" ]]; then
+                build_args+=(--build-arg CAMBRICON_TOOLKIT="$TOOLKIT_VERSION")
             fi
         fi
 
@@ -229,6 +231,9 @@ _print_summary() {
     elif [[ "$PLATFORM" == "hygon" ]]; then
         local toolkit="${TOOLKIT_VERSION:-dtk26.04}"
         base_image="${BASE_IMAGE_REGISTRY}/flagos-base-hygon-${toolkit}:${BASE_IMAGE_TAG}"
+    elif [[ "$PLATFORM" == "cambricon" ]]; then
+        local toolkit="${TOOLKIT_VERSION:-neuware4.7.2}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-base-cambricon-${toolkit}:${BASE_IMAGE_TAG}"
     else
         base_image="未知平台"
     fi
