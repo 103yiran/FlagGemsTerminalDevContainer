@@ -17,17 +17,14 @@ ARG PLATFORM=nvidia
 ARG BASE_IMAGE_TAG=2.1.1
 ARG BASE_IMAGE_REGISTRY=harbor.baai.ac.cn/flagos-base
 
-# Default toolkit versions per platform (can be overridden)
 ARG NVIDIA_TOOLKIT=cuda13.3
 ARG HYGON_TOOLKIT=dtk26.04
 ARG CAMBRICON_TOOLKIT=neuware4.7.2
 
-# Select base image based on platform
 FROM ${BASE_IMAGE_REGISTRY}/flagos-base-nvidia-${NVIDIA_TOOLKIT}:${BASE_IMAGE_TAG} AS base-nvidia
 FROM ${BASE_IMAGE_REGISTRY}/flagos-base-hygon-${HYGON_TOOLKIT}:${BASE_IMAGE_TAG} AS base-hygon
 FROM ${BASE_IMAGE_REGISTRY}/flagos-base-cambricon-${CAMBRICON_TOOLKIT}:${BASE_IMAGE_TAG} AS base-cambricon
 
-# Use the appropriate base for the target platform
 FROM base-${PLATFORM} AS base
 
 ARG USERNAME=user
@@ -35,10 +32,7 @@ ARG USER_UID=1000
 ARG USER_GID=1000
 
 # Transfer ownership of the /flagos venv and uv's Python cache to the
-# non-root user.  chown is used rather than chmod so that execute bits
-# on every binary are inherited correctly regardless of how they were
-# originally set by the runtime image.
-# /root itself must remain traversable for uv to resolve its Python path.
+# non-root user.  mkdir -p guards paths absent in some base images.
 RUN chmod o+x /root \
     && mkdir -p /root/.local/share/uv /flagos \
     && chown -R "${USER_UID}:${USER_GID}" /root/.local/share/uv \
@@ -46,7 +40,6 @@ RUN chmod o+x /root \
 
 # ------------------------------------------------------------------
 # Switch apt sources to Aliyun mirror
-# (works for both Ubuntu 24.04 noble and 26.04 plucky)
 # ------------------------------------------------------------------
 RUN sed -i \
         -e 's|http://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
@@ -58,10 +51,8 @@ RUN sed -i \
         /etc/apt/sources.list
 
 # ------------------------------------------------------------------
-# System packages: common tools + platform-specific extras
-#
-# NVIDIA extras: python3-pip, clang-format, openssh-client,
-#                pre-commit / flake8 / black / isort (via pip)
+# System packages — NVIDIA extras: python3-pip, clang-format,
+# openssh-client, pre-commit / flake8 / black / isort (via pip)
 # ------------------------------------------------------------------
 ARG PLATFORM
 RUN apt-get update \
@@ -94,7 +85,6 @@ RUN apt-get update \
 
 # ------------------------------------------------------------------
 # Neovim stable (>= 0.11) via neovim-ppa/unstable
-# (apt universe only has 0.9; AppImage/tarball requires GitHub access)
 # ------------------------------------------------------------------
 RUN apt-get update \
     && apt-get install -y --no-install-recommends software-properties-common \
@@ -117,7 +107,6 @@ RUN curl -fsSL --retry 3 \
 
 # ------------------------------------------------------------------
 # Switch to non-root user
-# (LazyVim + zsh plugins installed at first container start via setup.sh)
 # ------------------------------------------------------------------
 USER $USERNAME
 
