@@ -25,8 +25,7 @@ readonly FLAGGEMS_ROOT="$(cd "$SCRIPT_DIR/../../FlagGems" && pwd)"
 
 # ── Platform identity ─────────────────────────────────────────────
 PLATFORM="hygon"
-# Optional: override default toolkit version (dtk26.04)
-# TOOLKIT_VERSION="dtk25.10"
+TOOLKIT_VERSION="${TOOLKIT_VERSION:-dtk26.04}"
 
 # ── Platform hardware flags ───────────────────────────────────────
 platform_hardware_args() {

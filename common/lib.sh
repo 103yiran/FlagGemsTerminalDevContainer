@@ -184,16 +184,13 @@ _build_dev() {
 
         local build_args=(
             --build-arg PLATFORM="$PLATFORM"
+            --build-arg TOOLKIT="${TOOLKIT_VERSION}"
             --build-arg BASE_IMAGE_TAG="$BASE_IMAGE_TAG"
             --build-arg BASE_IMAGE_REGISTRY="$BASE_IMAGE_REGISTRY"
             --build-arg USERNAME="$(id -un)"
             --build-arg USER_UID="$(id -u)"
             --build-arg USER_GID="$(id -g)"
         )
-
-        if [[ -n "${TOOLKIT_VERSION:-}" ]]; then
-            build_args+=(--build-arg TOOLKIT="$TOOLKIT_VERSION")
-        fi
 
         docker build \
             "${build_args[@]}" \

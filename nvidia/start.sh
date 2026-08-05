@@ -30,8 +30,7 @@ readonly FLAGGEMS_ROOT="$(cd "$SCRIPT_DIR/../../FlagGems" && pwd)"
 
 # ── Platform identity ─────────────────────────────────────────────
 PLATFORM="nvidia"
-# Optional: override default toolkit version (cuda13.3)
-# TOOLKIT_VERSION="cuda12.1"
+TOOLKIT_VERSION="${TOOLKIT_VERSION:-cuda13.3}"
 
 # ── Platform hardware flags ───────────────────────────────────────
 platform_hardware_args() {

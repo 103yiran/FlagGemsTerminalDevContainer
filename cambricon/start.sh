@@ -30,8 +30,7 @@ readonly FLAGGEMS_ROOT="$(cd "$SCRIPT_DIR/../../FlagGems" && pwd)"
 
 # ── Platform identity ─────────────────────────────────────────────
 PLATFORM="cambricon"
-# Optional: override default toolkit version (neuware4.7.2)
-# TOOLKIT_VERSION="neuware5.0.0"
+TOOLKIT_VERSION="${TOOLKIT_VERSION:-neuware4.7.2}"
 
 # ── Platform hardware flags ───────────────────────────────────────
 platform_hardware_args() {

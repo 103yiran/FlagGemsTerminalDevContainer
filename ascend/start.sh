@@ -30,8 +30,7 @@ readonly FLAGGEMS_ROOT="$(cd "$SCRIPT_DIR/../../FlagGems" && pwd)"
 
 # ── Platform identity ─────────────────────────────────────────────
 PLATFORM="ascend"
-# Optional: override default toolkit version (cann9.0.0)
-# TOOLKIT_VERSION="cann8.0.0"
+TOOLKIT_VERSION="${TOOLKIT_VERSION:-cann9.0.0}"
 
 # ── Platform hardware flags ───────────────────────────────────────
 platform_hardware_args() {
