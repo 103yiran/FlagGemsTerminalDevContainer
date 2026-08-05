@@ -33,10 +33,15 @@ ARG USER_GID=1000
 
 # Transfer ownership of the /flagos venv and uv's Python cache to the
 # non-root user.  mkdir -p guards paths absent in some base images.
+# Symlink uv into /usr/local/bin so it is on PATH for all users; the
+# binary lives at /root/.local/bin/uv (installed by the FlagOS base image).
 RUN chmod o+x /root \
-    && mkdir -p /root/.local/share/uv /flagos \
+    && mkdir -p /root/.local/share/uv /root/.local/bin /flagos \
     && chown -R "${USER_UID}:${USER_GID}" /root/.local/share/uv \
-    && chown -R "${USER_UID}:${USER_GID}" /flagos
+    && chown -R "${USER_UID}:${USER_GID}" /flagos \
+    && if [ -f /root/.local/bin/uv ]; then \
+           ln -sf /root/.local/bin/uv /usr/local/bin/uv; \
+       fi
 
 # ------------------------------------------------------------------
 # Switch apt sources to Aliyun mirror

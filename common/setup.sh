@@ -75,6 +75,10 @@ fi
 # properly configured, even if a bare .zshrc already exists.
 if [[ -d "${HOME}/.oh-my-zsh" ]]; then
     cp "${HOME}/.oh-my-zsh/templates/zshrc.zsh-template" "${HOME}/.zshrc"
+    # The template comments out the $HOME/.local/bin PATH line; uncomment it so
+    # tools installed there (uv, cargo binaries, etc.) are available immediately.
+    sed -i 's|^# export PATH=\$HOME/bin:\$HOME/.local/bin|export PATH=$HOME/bin:$HOME/.local/bin|' \
+        "${HOME}/.zshrc"
 fi
 
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
