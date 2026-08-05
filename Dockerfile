@@ -40,6 +40,7 @@ ARG USER_GID=1000
 # originally set by the runtime image.
 # /root itself must remain traversable for uv to resolve its Python path.
 RUN chmod o+x /root \
+    && mkdir -p /root/.local/share/uv /flagos \
     && chown -R "${USER_UID}:${USER_GID}" /root/.local/share/uv \
     && chown -R "${USER_UID}:${USER_GID}" /flagos
 
