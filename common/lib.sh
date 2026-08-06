@@ -192,8 +192,9 @@ _build_dev() {
             --build-arg USER_GID="$(id -g)"
         )
 
-        DOCKER_BUILDKIT=1 docker build \
+        docker build \
             "${build_args[@]}" \
+            --privileged \
             -t "$DEV_IMAGE" \
             -f "${repo_root}/Dockerfile" \
             "$script_dir"
