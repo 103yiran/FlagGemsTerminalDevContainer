@@ -192,7 +192,7 @@ _build_dev() {
             --build-arg USER_GID="$(id -g)"
         )
 
-        docker build \
+        DOCKER_BUILDKIT=1 docker build \
             "${build_args[@]}" \
             -t "$DEV_IMAGE" \
             -f "${repo_root}/Dockerfile" \
