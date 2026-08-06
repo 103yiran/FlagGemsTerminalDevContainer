@@ -32,13 +32,16 @@ ARG USER_GID=1000
 # non-root user.  mkdir -p guards paths absent in some base images.
 # Symlink uv into /usr/local/bin so it is on PATH for all users; the
 # binary lives at /root/.local/bin/uv (installed by the FlagOS base image).
-RUN chmod o+x /root \
-    && mkdir -p /root/.local/share/uv /root/.local/bin /flagos \
-    && chown -R "${USER_UID}:${USER_GID}" /root/.local/share/uv \
+# Place uv cache at /usr/local/share/uv to avoid /root traversal issues.
+RUN mkdir -p /usr/local/share/uv /root/.local/bin /flagos \
+    && chown -R "${USER_UID}:${USER_GID}" /usr/local/share/uv \
     && chown -R "${USER_UID}:${USER_GID}" /flagos \
     && if [ -f /root/.local/bin/uv ]; then \
            ln -sf /root/.local/bin/uv /usr/local/bin/uv; \
        fi
+
+# Point uv to the shared cache location
+ENV UV_CACHE_DIR=/usr/local/share/uv
 
 # ------------------------------------------------------------------
 # Switch apt sources to Aliyun mirror
