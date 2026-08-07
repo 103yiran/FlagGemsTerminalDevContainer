@@ -9,7 +9,7 @@
 #   PLATFORM=cambricon             — TOOLKIT default: neuware4.7.2
 #   PLATFORM=ascend                — TOOLKIT default: cann9.0.0
 #   TOOLKIT                        — override toolkit version (replaces per-platform default)
-#   BASE_IMAGE_TAG=2.1.1           — FlagOS base image version
+#   BASE_IMAGE_TAG=2.1.2           — FlagOS base image version
 #
 # Resulting base image: flagos-base-<PLATFORM>-<TOOLKIT>:<BASE_IMAGE_TAG>
 #
@@ -19,7 +19,7 @@
 
 ARG PLATFORM=nvidia
 ARG TOOLKIT=cuda13.3
-ARG BASE_IMAGE_TAG=2.1.1
+ARG BASE_IMAGE_TAG=2.1.2
 ARG BASE_IMAGE_REGISTRY=harbor.baai.ac.cn/flagos-base
 
 FROM ${BASE_IMAGE_REGISTRY}/flagos-base-${PLATFORM}-${TOOLKIT}:${BASE_IMAGE_TAG} AS base

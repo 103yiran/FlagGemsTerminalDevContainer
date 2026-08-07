@@ -91,7 +91,7 @@ All platforms share the same interface:
 | `--repo PATH` | Mount a repository at `/workspace/<name>` (repeatable; default: `../FlagGems`) |
 | `-c CMD` / `--cmd CMD` | Command to exec into the container (default: `zsh`) |
 | `--ssh-agent` | Use SSH agent forwarding instead of mounting `~/.ssh` |
-| `--base-tag VERSION` | FlagOS base image version (default: `2.1.1`) |
+| `--base-tag VERSION` | FlagOS base image version (default: `2.1.2`) |
 
 The container's working directory is set to the first `--repo` path (or `/workspace/FlagGems` by default).
 

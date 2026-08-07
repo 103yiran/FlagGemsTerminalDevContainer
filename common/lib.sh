@@ -7,7 +7,7 @@
 # Callers may override defaults:
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
 #   CONTAINER_NAME    (default: flaggems-${PLATFORM}-dev-$(id -un))
-#   BASE_IMAGE_TAG    (default: 2.1.1)
+#   BASE_IMAGE_TAG    (default: 2.1.2)
 #   TOOLKIT_VERSION   (optional: override toolkit version, passed as TOOLKIT build-arg)
 #
 # After sourcing, callers must define:
@@ -20,7 +20,7 @@ set -euo pipefail
 # ── Defaults ─────────────────────────────────────────────────────
 DEV_IMAGE="${DEV_IMAGE:-flaggems-${PLATFORM}:dev}"
 CONTAINER_NAME="${CONTAINER_NAME:-flaggems-${PLATFORM}-dev-$(id -un)}"
-BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.1}"
+BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2}"
 BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-base}"
 
 # ── Runtime state ─────────────────────────────────────────────────
@@ -60,7 +60,7 @@ show_help() {
     -c, --cmd COMMAND       exec 进容器时执行的命令（默认: zsh）
         --repo PATH         挂载仓库到 /workspace/<name>，可重复使用
                             （默认: FlagGems → /workspace/FlagGems）
-        --base-tag VERSION  指定 FlagOS base 镜像版本（默认: 2.1.1）
+        --base-tag VERSION  指定 FlagOS base 镜像版本（默认: 2.1.2）
 
 SSH 说明:
     默认将宿主机 ~/.ssh 以只读方式挂载到容器内，密钥作为文件存在。

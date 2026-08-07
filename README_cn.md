@@ -91,7 +91,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 | `--repo PATH` | 挂载仓库到 `/workspace/<name>`，可重复使用（默认：`../FlagGems`） |
 | `-c CMD` / `--cmd CMD` | 进入容器时执行的命令（默认：`zsh`） |
 | `--ssh-agent` | 使用 SSH agent 转发（默认挂载 `~/.ssh`） |
-| `--base-tag VERSION` | 指定 FlagOS base 镜像版本（默认：`2.1.1`） |
+| `--base-tag VERSION` | 指定 FlagOS base 镜像版本（默认：`2.1.2`） |
 
 容器的工作目录为第一个 `--repo` 对应的容器路径（默认为 `/workspace/FlagGems`）。
 

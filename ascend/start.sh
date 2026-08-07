@@ -20,7 +20,7 @@
 #   ./ascend/start.sh -c "python a.py"        # exec command (default: zsh)
 #   ./ascend/start.sh --repo ../FlagTree      # mount FlagTree instead of FlagGems
 #   ./ascend/start.sh --repo ../A --repo ../B # mount multiple repos
-#   ./ascend/start.sh --base-tag 2.1.1        # use FlagOS base image version 2.1.1
+#   ./ascend/start.sh --base-tag 2.1.2        # use FlagOS base image version 2.1.2
 #
 # See common/lib.sh for full option documentation.
 
