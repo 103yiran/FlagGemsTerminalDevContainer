@@ -90,10 +90,14 @@ RUN apt-get update \
 
 # ------------------------------------------------------------------
 # Neovim stable (>= 0.11) via neovim-ppa/unstable
+# add-apt-repository requires api.launchpad.net; add the PPA manually instead.
 # ------------------------------------------------------------------
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends software-properties-common \
-    && add-apt-repository ppa:neovim-ppa/unstable \
+    && apt-get install -y --no-install-recommends curl gnupg \
+    && curl -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x9dbb0be9366964f134855e2255f96fcf8231b6dd' \
+        | gpg --dearmor -o /usr/share/keyrings/neovim-ppa.gpg \
+    && echo 'deb [arch=arm64 signed-by=/usr/share/keyrings/neovim-ppa.gpg] https://ppa.launchpadcontent.net/neovim-ppa/unstable/ubuntu noble main' \
+        > /etc/apt/sources.list.d/neovim-ppa.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends neovim \
     && rm -rf /var/lib/apt/lists/* \
@@ -103,11 +107,11 @@ RUN apt-get update \
 # Claude Code CLI — Node.js from Aliyun mirror + npm via npmmirror
 # ------------------------------------------------------------------
 RUN curl -fsSL --retry 3 \
-        "https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-x64.tar.xz" \
+        "https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-arm64.tar.xz" \
         -o /tmp/node.tar.xz \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
-    && npm install -g @anthropic-ai/claude-code tree-sitter-cli \
+    && npm install -g @anthropic-ai/claude-code \
         --registry https://registry.npmmirror.com
 
 # ------------------------------------------------------------------

@@ -174,6 +174,8 @@ _build_ssh_args() {
 }
 
 # ── Build: dev image ──────────────────────────────────────────────
+# This host's seccomp profile blocks container creation inside docker build,
+# so we use the run→exec→commit pattern instead of docker build.
 _build_dev() {
     local script_dir="$1"
     local repo_root="$2"
@@ -182,21 +184,95 @@ _build_dev() {
             && print_step "强制重新构建 dev 镜像: $DEV_IMAGE" \
             || print_step "dev 镜像不存在，开始构建: $DEV_IMAGE"
 
-        local build_args=(
-            --build-arg PLATFORM="$PLATFORM"
-            --build-arg TOOLKIT="${TOOLKIT_VERSION}"
-            --build-arg BASE_IMAGE_TAG="$BASE_IMAGE_TAG"
-            --build-arg BASE_IMAGE_REGISTRY="$BASE_IMAGE_REGISTRY"
-            --build-arg USERNAME="$(id -un)"
-            --build-arg USER_UID="$(id -u)"
-            --build-arg USER_GID="$(id -g)"
-        )
+        local base_image="${BASE_IMAGE_REGISTRY}/flagos-base-${PLATFORM}-${TOOLKIT_VERSION}:${BASE_IMAGE_TAG}"
+        local build_ctr="flaggems-build-$$"
+        local _username _uid _gid
+        _username="$(id -un)"
+        _uid="$(id -u)"
+        _gid="$(id -g)"
 
-        DOCKER_BUILDKIT=0 docker build \
-            "${build_args[@]}" \
-            -t "$DEV_IMAGE" \
-            -f "${repo_root}/Dockerfile" \
-            "$script_dir"
+        # Ensure the build container is removed even if the build fails
+        trap "docker rm -f '$build_ctr' 2>/dev/null || true" EXIT
+
+        # Start a throw-away container with seccomp=unconfined so RUN commands work
+        docker run -d \
+            --name "$build_ctr" \
+            --security-opt seccomp=unconfined \
+            "$base_image" \
+            sleep infinity
+
+        # Execute every layer from the Dockerfile in order
+        docker exec "$build_ctr" bash -c "
+set -e
+# Layer 1: uv cache dir, /flagos ownership, uv symlink
+mkdir -p /usr/local/share/uv /root/.local/bin /flagos
+chown -R '${_uid}:${_gid}' /usr/local/share/uv
+chown -R '${_uid}:${_gid}' /flagos
+if [ -f /root/.local/bin/uv ]; then
+    ln -sf /root/.local/bin/uv /usr/local/bin/uv
+fi
+
+# Layer 2: apt sources → Aliyun mirror
+sed -i \
+    -e 's|http://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
+    -e 's|http://security.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
+    /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null \
+|| sed -i \
+    -e 's|http://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
+    -e 's|http://security.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g' \
+    /etc/apt/sources.list
+
+# Layer 3: system packages + user creation
+PLATFORM='${PLATFORM}'
+apt-get update
+apt-get install -y --no-install-recommends \
+    sudo zsh git curl wget unzip ca-certificates ripgrep fd-find gh \
+    \$([ \"\$PLATFORM\" = 'nvidia' ] && echo 'python3-pip clang-format openssh-client')
+if [ \"\$PLATFORM\" = 'nvidia' ]; then
+    /usr/bin/pip3 install --no-cache-dir --break-system-packages \
+        --timeout 120 --retries 5 \
+        --index-url https://mirrors.aliyun.com/pypi/simple/ \
+        pre-commit==3.7.1 flake8==7.1.0 black==23.7.0 isort==5.12.0
+fi
+groupadd --gid '${_gid}' '${_username}'
+useradd --uid '${_uid}' --gid '${_gid}' -m -s /usr/bin/zsh '${_username}'
+echo '${_username} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/'${_username}'
+chmod 0440 /etc/sudoers.d/'${_username}'
+rm -rf /var/lib/apt/lists/*
+
+# Layer 4: Neovim >= 0.11 via neovim-ppa/unstable
+# add-apt-repository requires api.launchpad.net which may be unreachable,
+# so we add the PPA source and GPG key manually instead.
+apt-get update -qq
+apt-get install -y --no-install-recommends curl gnupg
+curl -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x9dbb0be9366964f134855e2255f96fcf8231b6dd' \
+    | gpg --dearmor -o /usr/share/keyrings/neovim-ppa.gpg
+echo 'deb [arch=arm64 signed-by=/usr/share/keyrings/neovim-ppa.gpg] https://ppa.launchpadcontent.net/neovim-ppa/unstable/ubuntu noble main' \
+    > /etc/apt/sources.list.d/neovim-ppa.list
+apt-get update -qq
+apt-get install -y --no-install-recommends neovim
+rm -rf /var/lib/apt/lists/*
+nvim --version | head -1
+
+# Layer 5: Node.js + Claude Code CLI
+curl -fsSL --retry 3 \
+    'https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-arm64.tar.xz' \
+    -o /tmp/node.tar.xz
+tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
+rm /tmp/node.tar.xz
+npm install -g @anthropic-ai/claude-code \
+    --registry https://registry.npmmirror.com
+"
+        # Commit the container as the dev image with metadata
+        docker commit \
+            --change "ENV UV_CACHE_DIR=/usr/local/share/uv" \
+            --change "USER ${_username}" \
+            --change "WORKDIR /workspace" \
+            "$build_ctr" \
+            "$DEV_IMAGE"
+
+        docker rm -f "$build_ctr"
+        trap - EXIT  # build succeeded, cancel the cleanup trap
         print_success "dev 镜像构建完成: $DEV_IMAGE"
         FORCE_RECREATE=true
     else
