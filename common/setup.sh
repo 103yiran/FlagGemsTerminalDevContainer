@@ -113,6 +113,19 @@ if [[ ! -d "${HOME}/.config/nvim" ]]; then
         if git clone --depth=1 git@github.com:LazyVim/starter.git \
                 "${HOME}/.config/nvim"; then
             rm -rf "${HOME}/.config/nvim/.git"
+
+            # Disable plugins that require the tree-sitter CLI binary.
+            # nvim-treesitter itself only needs gcc (for :TSInstall); the CLI
+            # is only used by playground and :TSInstallFromGrammar, which we
+            # don't need in this environment.
+            mkdir -p "${HOME}/.config/nvim/lua/plugins"
+            cat > "${HOME}/.config/nvim/lua/plugins/no-treesitter-cli.lua" << 'LUA'
+-- Disable nvim-treesitter-playground (requires the tree-sitter CLI binary).
+return {
+  { "nvim-treesitter/playground", enabled = false },
+}
+LUA
+
             info "Syncing LazyVim plugins (this may take a while)..."
             nvim --headless "+Lazy! sync" +qa \
                 || warn "Lazy sync exited non-zero — some plugins may be missing"
