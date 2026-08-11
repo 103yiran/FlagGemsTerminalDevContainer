@@ -34,12 +34,22 @@ TOOLKIT_VERSION="${TOOLKIT_VERSION:-cann9.0.0}"
 
 # ── Platform hardware flags ───────────────────────────────────────
 platform_hardware_args() {
-    cat << 'EOF'
---device=/dev/davinci0
---device=/dev/davinci_manager
---device=/dev/devmm_svm
---device=/dev/hisi_hdc
+    # Use privileged mode for Ascend NPU access
+    # This is required to avoid DCMI conflicts with host services like npu-exporter
+    cat << EOF
+--privileged
+--security-opt label=disable
 EOF
+
+    # Add group access for Ascend devices
+    local davinci_gid=""
+    if [[ -e /dev/davinci0 ]]; then
+        davinci_gid=$(stat -c '%g' /dev/davinci0 2>/dev/null || true)
+    fi
+
+    if [[ -n "$davinci_gid" ]]; then
+        echo "--group-add=$davinci_gid"
+    fi
 }
 
 # ── Platform extra mounts ─────────────────────────────────────────
@@ -50,10 +60,50 @@ ASCEND_EXTRA_MOUNTS=(
     -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi
 )
 
+# ── Platform environment variables ────────────────────────────────
+# Add Ascend driver libraries to LD_LIBRARY_PATH
+ASCEND_ENV_VARS=(
+    -e LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:/usr/local/dcmi:\${LD_LIBRARY_PATH}
+)
+
 # Override _run_container to inject the extra mounts before calling the base.
 # We patch REPO_MOUNT_ARGS after parsing so lib_main picks it up transparently.
 _ascend_patch_mounts() {
-    REPO_MOUNT_ARGS=("${ASCEND_EXTRA_MOUNTS[@]}" "${REPO_MOUNT_ARGS[@]}")
+    REPO_MOUNT_ARGS=("${ASCEND_EXTRA_MOUNTS[@]}" "${ASCEND_ENV_VARS[@]}" "${REPO_MOUNT_ARGS[@]}")
+}
+
+# Configure Ascend NPU device access for a non-root user.
+#
+# HwHiAiUser group: The NPU kernel driver checks group membership by name.
+# The FlagOS base image ships GID 1000 as 'ubuntu', not 'HwHiAiUser'.
+# We create a second entry for GID 1000 named HwHiAiUser (groupadd -o
+# permits duplicate GIDs) and add the user to it.
+#
+# This grants the user access to /dev/davinci[0-7] for training workloads
+# (torch_npu, etc). npu-smi (monitoring tool) uses /dev/davinci_manager
+# via DCMI and will fail with -8020 when npu-exporter holds the DCMI lock;
+# use `sudo npu-smi` or `docker exec -u root` for monitoring if needed.
+_ascend_setup_device_permissions() {
+    local _username="$(id -un)"
+    local _hw_gid
+    _hw_gid=$(stat -c '%g' /dev/davinci0 2>/dev/null || true)
+
+    if [[ -z "$_hw_gid" ]]; then
+        print_warn "未找到 /dev/davinci0，跳过 Ascend 权限配置"
+        return
+    fi
+
+    print_step "配置 Ascend 设备访问权限 (HwHiAiUser GID=${_hw_gid})..."
+
+    docker exec -u root "${CONTAINER_NAME}" bash -c "
+        set -e
+        # -o allows duplicate GIDs (image has GID ${_hw_gid} as 'ubuntu').
+        if ! getent group HwHiAiUser > /dev/null 2>&1; then
+            groupadd -g ${_hw_gid} -o HwHiAiUser
+        fi
+        usermod -aG HwHiAiUser '${_username}'
+    "
+    print_success "已将用户 ${_username} 加入 HwHiAiUser 组 (GID=${_hw_gid})"
 }
 
 # ── Load shared logic ─────────────────────────────────────────────
@@ -71,6 +121,21 @@ eval "_orig_run_container() $(declare -f _run_container | tail -n +2)"
 _run_container() {
     _ascend_patch_mounts
     _orig_run_container "$@"
+
+    # Setup device permissions after container is created
+    if container_running; then
+        _ascend_setup_device_permissions
+
+        # Initialize Ascend environment (critical for DCMI to work)
+        print_step "初始化 Ascend 运行环境..."
+        docker exec "${CONTAINER_NAME}" bash -c '
+            source /usr/local/Ascend/ascend-toolkit/set_env.sh 2>/dev/null || true
+            source /usr/local/Ascend/cann-9.0.0/share/info/ascendnpu-ir/bin/set_env.sh 2>/dev/null || true
+            source /usr/local/Ascend/nnal/atb/set_env.sh 2>/dev/null || true
+            exit 0
+        ' 2>&1 | grep -v "DrvMngGetConsoleLogLevel" || true
+        print_success "Ascend 环境已初始化"
+    fi
 }
 
 lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"
