@@ -245,18 +245,15 @@ rm -rf /var/lib/apt/lists/*
 
 # Layer 4: Neovim >= 0.11
 # Skip if the base image already ships a satisfying version; otherwise download
-# from TUNA mirror (github.com and proxy services are unreachable).
-# uname -m → aarch64 on ARM hosts; neovim release assets use "arm64".
+# AppImage from ghproxy.cn (single binary, no architecture-specific unpacking).
 if nvim --version 2>/dev/null | head -1 | grep -qE 'NVIM v(0\.(1[1-9]|[2-9][0-9])|[1-9][0-9])'; then
     echo 'neovim already satisfies >= 0.11, skipping download'
     nvim --version | head -1
 else
-    _nvim_arch=\$(uname -m | sed 's/aarch64/arm64/')
     curl -fsSL --retry 3 \
-        \"https://mirrors.tuna.tsinghua.edu.cn/github-release/neovim/neovim/v0.11.2/nvim-linux-\${_nvim_arch}.tar.gz\" \
-        -o /tmp/nvim.tar.gz
-    tar -xzf /tmp/nvim.tar.gz -C /usr/local --strip-components=1
-    rm /tmp/nvim.tar.gz
+        \"https://ghproxy.cn/https://github.com/neovim/neovim/releases/download/v0.11.2/nvim.appimage\" \
+        -o /usr/local/bin/nvim
+    chmod +x /usr/local/bin/nvim
     nvim --version | head -1
 fi
 
