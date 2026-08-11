@@ -110,7 +110,7 @@ if [[ ! -d "${HOME}/.config/nvim" ]]; then
         warn "To install later: ensure ~/.ssh/id_ed25519 exists and re-run setup.sh."
     else
         info "Installing LazyVim starter config..."
-        if git clone --depth=1 git@github.com:LazyVim/starter.git \
+        if git clone --depth=1 git@gitcode.com:GitHub_Trending/la/LazyVim.git \
                 "${HOME}/.config/nvim"; then
             rm -rf "${HOME}/.config/nvim/.git"
 
