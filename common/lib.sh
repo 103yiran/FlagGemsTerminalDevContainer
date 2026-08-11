@@ -243,23 +243,28 @@ echo '${_username} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/'${_username}'
 chmod 0440 /etc/sudoers.d/'${_username}'
 rm -rf /var/lib/apt/lists/*
 
-# Layer 4: Neovim >= 0.11 via neovim-ppa/unstable
-# add-apt-repository requires api.launchpad.net which may be unreachable,
-# so we add the PPA source and GPG key manually instead.
-apt-get update -qq
-apt-get install -y --no-install-recommends curl gnupg
-curl -fsSL 'https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x9dbb0be9366964f134855e2255f96fcf8231b6dd' \
-    | gpg --dearmor -o /usr/share/keyrings/neovim-ppa.gpg
-echo 'deb [arch=arm64 signed-by=/usr/share/keyrings/neovim-ppa.gpg] https://ppa.launchpadcontent.net/neovim-ppa/unstable/ubuntu noble main' \
-    > /etc/apt/sources.list.d/neovim-ppa.list
-apt-get update -qq
-apt-get install -y --no-install-recommends neovim
-rm -rf /var/lib/apt/lists/*
-nvim --version | head -1
+# Layer 4: Neovim >= 0.11
+# Skip if the base image already ships a satisfying version; otherwise download
+# via ghproxy (github.com is unreachable from the build environment).
+# uname -m → aarch64 on ARM hosts; neovim release assets use "arm64".
+if nvim --version 2>/dev/null | head -1 | grep -qE 'NVIM v(0\.(1[1-9]|[2-9][0-9])|[1-9][0-9])'; then
+    echo 'neovim already satisfies >= 0.11, skipping download'
+    nvim --version | head -1
+else
+    _nvim_arch=\$(uname -m | sed 's/aarch64/arm64/')
+    curl -fsSL --retry 3 \
+        \"https://mirror.ghproxy.com/https://github.com/neovim/neovim/releases/download/v0.11.2/nvim-linux-\${_nvim_arch}.tar.gz\" \
+        -o /tmp/nvim.tar.gz
+    tar -xzf /tmp/nvim.tar.gz -C /usr/local --strip-components=1
+    rm /tmp/nvim.tar.gz
+    nvim --version | head -1
+fi
 
 # Layer 5: Node.js + Claude Code CLI
+# node release naming: arm64 stays arm64, x86_64 becomes x64.
+_node_arch=\$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x64/')
 curl -fsSL --retry 3 \
-    'https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-arm64.tar.xz' \
+    \"https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-\${_node_arch}.tar.xz\" \
     -o /tmp/node.tar.xz
 tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
 rm /tmp/node.tar.xz
