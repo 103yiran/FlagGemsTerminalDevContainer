@@ -244,17 +244,58 @@ chmod 0440 /etc/sudoers.d/'${_username}'
 rm -rf /var/lib/apt/lists/*
 
 # Layer 4: Neovim >= 0.11
-# Skip if the base image already ships a satisfying version; otherwise download
-# AppImage from ghproxy.cn (single binary, no architecture-specific unpacking).
+# Skip if the base image already ships a satisfying version; otherwise install
+# via apt (reliable, no GitHub dependency) then try AppImage from mirrors.
 if nvim --version 2>/dev/null | head -1 | grep -qE 'NVIM v(0\.(1[1-9]|[2-9][0-9])|[1-9][0-9])'; then
-    echo 'neovim already satisfies >= 0.11, skipping download'
+    echo 'neovim already satisfies >= 0.11, skipping install'
     nvim --version | head -1
 else
-    curl -fsSL --retry 3 \
-        \"https://ghproxy.cn/https://github.com/neovim/neovim/releases/download/v0.11.2/nvim.appimage\" \
-        -o /usr/local/bin/nvim
-    chmod +x /usr/local/bin/nvim
-    nvim --version | head -1
+    _nvim_installed=false
+
+    # Attempt 1: apt install (stable, version may be older but always works)
+    if apt-get install -y --no-install-recommends neovim 2>/dev/null; then
+        if nvim --version 2>/dev/null | head -1 | grep -qE 'NVIM v(0\.(1[1-9]|[2-9][0-9])|[1-9][0-9])'; then
+            echo 'Installed satisfying neovim via apt'
+            nvim --version | head -1
+            _nvim_installed=true
+        else
+            echo 'apt neovim too old, will try AppImage'
+        fi
+    fi
+
+    # Attempt 2: AppImage from GitHub mirrors (architecture-aware filename)
+    if [ \"\$_nvim_installed\" = false ]; then
+        _nvim_ver='v0.11.2'
+        _nvim_darch=\$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x86_64/')
+        # New naming convention (>= v0.10): nvim-linux-<arch>.appimage
+        _nvim_filename=\"nvim-linux-\${_nvim_darch}.appimage\"
+        _nvim_base=\"https://github.com/neovim/neovim/releases/download/\${_nvim_ver}/\${_nvim_filename}\"
+        for _mirror in \
+            \"https://ghproxy.cn/\${_nvim_base}\" \
+            \"https://kkgithub.com/neovim/neovim/releases/download/\${_nvim_ver}/\${_nvim_filename}\" \
+            \"\${_nvim_base}\"
+        do
+            echo \"Trying: \${_mirror}\"
+            if curl -fsSL --retry 2 --connect-timeout 15 \"\${_mirror}\" -o /tmp/nvim.appimage; then
+                if file /tmp/nvim.appimage | grep -qE 'ELF|executable'; then
+                    mv /tmp/nvim.appimage /usr/local/bin/nvim
+                    chmod +x /usr/local/bin/nvim
+                    if nvim --version 2>/dev/null | head -1 | grep -q 'NVIM'; then
+                        nvim --version | head -1
+                        _nvim_installed=true
+                        break
+                    fi
+                else
+                    echo \"Non-binary response from \${_mirror}, trying next...\"
+                    rm -f /tmp/nvim.appimage
+                fi
+            fi
+        done
+    fi
+
+    if [ \"\$_nvim_installed\" = false ]; then
+        echo 'WARNING: neovim install failed from all sources'
+    fi
 fi
 
 # Layer 5: Node.js + Claude Code CLI
