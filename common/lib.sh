@@ -229,8 +229,8 @@ sed -i \
 PLATFORM='${PLATFORM}'
 apt-get update
 apt-get install -y --no-install-recommends \
-    sudo zsh git curl wget unzip ca-certificates ripgrep fd-find gh \
-    \$([ \"\$PLATFORM\" = 'nvidia' ] && echo 'python3-pip clang-format openssh-client')
+    sudo zsh git curl wget unzip ca-certificates ripgrep fd-find gh openssh-client \
+    \$([ \"\$PLATFORM\" = 'nvidia' ] && echo 'python3-pip clang-format')
 if [ \"\$PLATFORM\" = 'nvidia' ]; then
     /usr/bin/pip3 install --no-cache-dir --break-system-packages \
         --timeout 120 --retries 5 \
