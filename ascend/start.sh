@@ -62,7 +62,12 @@ source "${REPO_ROOT}/common/lib.sh"
 
 # Wrap lib_main to inject the extra mounts after arg parsing.
 # _parse_args populates REPO_MOUNT_ARGS; we extend it before _run_container.
-_orig_run_container() { _run_container "$@"; }
+#
+# Use `declare -f` to copy the *body* of lib.sh's _run_container, not just a
+# name alias.  Aliasing by name causes infinite recursion because bash resolves
+# function names at call time, so _orig_run_container would always call the new
+# wrapper instead of the original implementation.
+eval "_orig_run_container() $(declare -f _run_container | tail -n +2)"
 _run_container() {
     _ascend_patch_mounts
     _orig_run_container "$@"
