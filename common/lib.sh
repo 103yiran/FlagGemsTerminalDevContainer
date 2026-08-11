@@ -334,6 +334,15 @@ _run_container() {
         print_step "创建容器 home 目录: ${container_home_host}"
         mkdir -p "$container_home_host"
     fi
+    # Ensure the directory is owned by the current user, not root
+    # (in case it was created by a previous run with different permissions)
+    if [[ -O "$container_home_host" ]]; then
+        : # Already owned by current user
+    else
+        print_warn "容器 home 目录由 root 拥有，需要手动修复权限："
+        print_warn "  sudo chown -R $(id -u):$(id -g) \"$container_home_host\""
+        return 1
+    fi
 
     local hw_args=()
     while IFS= read -r line; do
@@ -362,7 +371,7 @@ _run_container() {
 
         print_step "运行 setup.sh 初始化容器环境..."
         docker cp "${repo_root}/common/setup.sh" "${CONTAINER_NAME}:/tmp/setup.sh"
-        docker exec "${CONTAINER_NAME}" zsh /tmp/setup.sh
+        docker exec --user "$(id -u):$(id -g)" "${CONTAINER_NAME}" zsh /tmp/setup.sh
         docker exec "${CONTAINER_NAME}" rm /tmp/setup.sh
         print_success "setup.sh 执行完毕"
 
