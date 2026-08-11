@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# common/lib.sh — shared logic for nvidia/start.sh, hygon/start.sh, cambricon/start.sh
+# common/lib.sh — shared logic for nvidia/start.sh, hygon/start.sh, cambricon/start.sh, metax/start.sh
 #
 # Callers must set before sourcing:
-#   PLATFORM          nvidia | hygon | cambricon
+#   PLATFORM          nvidia | hygon | cambricon | metax
 #
 # Callers may override defaults:
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
@@ -21,7 +21,7 @@ set -euo pipefail
 DEV_IMAGE="${DEV_IMAGE:-flaggems-${PLATFORM}:dev}"
 CONTAINER_NAME="${CONTAINER_NAME:-flaggems-${PLATFORM}-dev-$(id -un)}"
 BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2}"
-BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-base}"
+BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-runtime}"
 
 # ── Runtime state ─────────────────────────────────────────────────
 FORCE_RECREATE=false
@@ -184,7 +184,10 @@ _build_dev() {
             && print_step "强制重新构建 dev 镜像: $DEV_IMAGE" \
             || print_step "dev 镜像不存在，开始构建: $DEV_IMAGE"
 
-        local base_image="${BASE_IMAGE_REGISTRY}/flagos-base-${PLATFORM}-${TOOLKIT_VERSION}:${BASE_IMAGE_TAG}"
+        # BASE_IMAGE_NAME can be set by the caller to override the default image name
+        # (without tag); the tag is always appended from BASE_IMAGE_TAG.
+        local _base_name="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION}}"
+        local base_image="${_base_name}:${BASE_IMAGE_TAG}"
         local build_ctr="flaggems-build-$$"
         local _username _uid _gid
         _username="$(id -un)"
@@ -285,16 +288,19 @@ _print_summary() {
     local base_image
     if [[ "$PLATFORM" == "nvidia" ]]; then
         local toolkit="${TOOLKIT_VERSION:-cuda13.3}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-base-nvidia-${toolkit}:${BASE_IMAGE_TAG}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-nvidia-${toolkit}:${BASE_IMAGE_TAG}"
     elif [[ "$PLATFORM" == "hygon" ]]; then
         local toolkit="${TOOLKIT_VERSION:-dtk26.04}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-base-hygon-${toolkit}:${BASE_IMAGE_TAG}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-hygon-${toolkit}:${BASE_IMAGE_TAG}"
     elif [[ "$PLATFORM" == "cambricon" ]]; then
         local toolkit="${TOOLKIT_VERSION:-neuware4.7.2}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-base-cambricon-${toolkit}:${BASE_IMAGE_TAG}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-cambricon-${toolkit}:${BASE_IMAGE_TAG}"
     elif [[ "$PLATFORM" == "ascend" ]]; then
         local toolkit="${TOOLKIT_VERSION:-cann9.0.0}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-base-ascend-${toolkit}:${BASE_IMAGE_TAG}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-ascend-${toolkit}:${BASE_IMAGE_TAG}"
+    elif [[ "$PLATFORM" == "metax" ]]; then
+        local toolkit="${TOOLKIT_VERSION:-maca3.8.1.3}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-metax-${toolkit}:${BASE_IMAGE_TAG}"
     else
         base_image="未知平台"
     fi

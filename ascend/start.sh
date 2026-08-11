@@ -2,7 +2,7 @@
 # ascend/start.sh — launch the FlagGems Ascend development container.
 #
 # Step 1: build (or skip) flaggems-ascend:dev from root Dockerfile
-#         using harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0 as base
+#         using harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0 as base
 # Step 2: start container with -itd (detached), then exec into it
 #
 # SSH key forwarding (applied at container creation, pick one):

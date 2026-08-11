@@ -2,7 +2,7 @@
 # cambricon/start.sh — launch the FlagGems Cambricon development container.
 #
 # Step 1: build (or skip) flaggems-cambricon:dev from root Dockerfile
-#         using harbor.baai.ac.cn/flagos-base/flagos-base-cambricon-neuware4.7.2 as base
+#         using harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2 as base
 # Step 2: start container with -itd (detached), then exec into it
 #
 # SSH key forwarding (applied at container creation, pick one):

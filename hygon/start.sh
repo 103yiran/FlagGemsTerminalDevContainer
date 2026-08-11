@@ -2,7 +2,7 @@
 # hygon/start.sh — launch the FlagGems Hygon development container.
 #
 # Step 1: build (or skip) flaggems-hygon:dev from root Dockerfile
-#         using harbor.baai.ac.cn/flagos-base/flagos-base-hygon-dtk26.04 as base
+#         using harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04 as base
 # Step 2: start container with -itd (detached), then exec into it
 #
 # Usage:
