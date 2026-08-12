@@ -97,10 +97,22 @@ _ascend_setup_device_permissions() {
 
     docker exec -u root "${CONTAINER_NAME}" bash -c "
         set -e
-        # -o allows duplicate GIDs (image has GID ${_hw_gid} as 'ubuntu').
-        if ! getent group HwHiAiUser > /dev/null 2>&1; then
-            groupadd -g ${_hw_gid} -o HwHiAiUser
+        # Ascend driver checks group membership by name 'HwHiAiUser', not GID.
+        # If GID ${_hw_gid} is already used by 'ubuntu' group, move it to avoid conflict.
+        if getent group ubuntu | grep -q ':${_hw_gid}:'; then
+            # Find next available GID
+            new_gid=\$(( ${_hw_gid} + 1 ))
+            while getent group \$new_gid >/dev/null 2>&1; do
+                new_gid=\$(( new_gid + 1 ))
+            done
+            groupmod -g \$new_gid ubuntu 2>/dev/null || true
         fi
+
+        # Remove old HwHiAiUser if it exists with wrong GID, then create with correct GID
+        if getent group HwHiAiUser >/dev/null 2>&1; then
+            groupdel HwHiAiUser 2>/dev/null || true
+        fi
+        groupadd -g ${_hw_gid} HwHiAiUser
         usermod -aG HwHiAiUser '${_username}'
     "
     print_success "已将用户 ${_username} 加入 HwHiAiUser 组 (GID=${_hw_gid})"
