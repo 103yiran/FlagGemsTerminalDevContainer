@@ -148,17 +148,57 @@ EOF
         chmod 440 /etc/sudoers.d/ascend-env
 
         # /etc/environment is read by PAM before sudo resets the environment,
-        # so LD_LIBRARY_PATH set here survives even though sudo strips it from
-        # the inherited environment.
-        if ! grep -q "^LD_LIBRARY_PATH=" /etc/environment 2>/dev/null; then
-            ld_path=$(grep "^export LD_LIBRARY_PATH=" /etc/profile.d/vendor.sh 2>/dev/null \
-                      | sed "s/export LD_LIBRARY_PATH=//;s/'\''//g" | head -1)
-            if [[ -n "$ld_path" ]]; then
-                echo "LD_LIBRARY_PATH=\"${ld_path}\"" >> /etc/environment
+        # so values set here survive even though sudo strips them from the
+        # inherited environment.  This is also the mechanism that makes
+        # ASCEND_* variables available inside `sudo python3` when the user
+        # launches it from zsh (zsh non-login shells don't source
+        # /etc/profile.d/vendor.sh the way bash does, so the variables would
+        # otherwise be absent and torch_npu._C._get_cann_version would read a
+        # binary fallback path, triggering UnicodeDecodeError).
+        {
+            # Force UTF-8 locale (prevents UnicodeDecodeError in torch_npu C ext)
+            grep -q "^LANG=" /etc/environment || echo "LANG=C.UTF-8"
+            grep -q "^LC_ALL=" /etc/environment || echo "LC_ALL=C.UTF-8"
+
+            # LD_LIBRARY_PATH (sudo strips it from inherited env)
+            if ! grep -q "^LD_LIBRARY_PATH=" /etc/environment; then
+                ld_path=$(grep "^export LD_LIBRARY_PATH=" /etc/profile.d/vendor.sh 2>/dev/null \
+                          | sed "s/export LD_LIBRARY_PATH=//;s/'\''//g" | head -1)
+                [[ -n "$ld_path" ]] && echo "LD_LIBRARY_PATH=\"${ld_path}\""
             fi
-        fi
+
+            # ASCEND_* variables (zsh non-login shells do not get /etc/profile.d)
+            grep "^export ASCEND" /etc/profile.d/vendor.sh 2>/dev/null \
+                | sed "s/^export //;s/'\''//g" \
+                | while IFS= read -r line; do
+                    key="${line%%=*}"
+                    grep -q "^${key}=" /etc/environment || echo "$line"
+                done
+        } >> /etc/environment
     '
-    print_success "sudo 环境配置完成（PATH 和 LD_LIBRARY_PATH 已保留）"
+    print_success "sudo 环境配置完成（PATH、LD_LIBRARY_PATH、ASCEND_* 已保留）"
+
+    # ── ldconfig for capabilities-enabled Python ──────────────────────
+    # When Python has file capabilities (CAP_SYS_ADMIN), the dynamic linker
+    # ignores LD_LIBRARY_PATH for security. Add Ascend libraries to the
+    # system cache so they're found without LD_LIBRARY_PATH.
+    print_step "配置系统库缓存 (ldconfig)..."
+    docker exec -u root "${CONTAINER_NAME}" bash -c '
+        cat > /etc/ld.so.conf.d/ascend.conf << "EOF"
+/usr/local/Ascend/driver/lib64
+/usr/local/Ascend/driver/lib64/common
+/usr/local/Ascend/driver/lib64/driver
+/usr/local/Ascend/cann-9.0.0/lib64
+/usr/local/Ascend/cann-9.0.0/lib64/plugin/opskernel
+/usr/local/Ascend/cann-9.0.0/lib64/plugin/nnengine
+/usr/local/Ascend/ascend-toolkit/latest/lib64
+/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel
+/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/lib
+/usr/local/dcmi
+EOF
+        ldconfig
+    '
+    print_success "系统库缓存已更新"
 }
 
 # ── Load shared logic ─────────────────────────────────────────────
@@ -190,25 +230,6 @@ _run_container() {
             exit 0
         ' 2>&1 | grep -v "DrvMngGetConsoleLogLevel" || true
         print_success "Ascend 环境已初始化"
-
-        # Fix Python ownership and capabilities for non-root NPU access
-        local _username="$(id -un)"
-        if [[ "$_username" != "root" ]]; then
-            print_step "配置非 root 用户 NPU 访问权限..."
-
-            # Transfer Python ownership to allow LD_LIBRARY_PATH inheritance
-            docker exec -u root "${CONTAINER_NAME}" bash -c "
-                chown -R ${_username}:${_username} /root/.local/share/uv/python/ 2>/dev/null || true
-            "
-
-            # Grant CAP_SYS_ADMIN to bypass namespace checks in Ascend driver
-            docker exec -u root "${CONTAINER_NAME}" bash -c "
-                apt-get update -qq && apt-get install -y -qq libcap2-bin >/dev/null 2>&1
-                setcap cap_sys_admin+eip /root/.local/share/uv/python/*/bin/python3.* 2>/dev/null || true
-            "
-
-            print_success "非 root 用户权限已配置"
-        fi
     fi
 }
 
