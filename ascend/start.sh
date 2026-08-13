@@ -36,8 +36,10 @@ TOOLKIT_VERSION="${TOOLKIT_VERSION:-cann9.0.0}"
 platform_hardware_args() {
     # Use privileged mode for Ascend NPU access
     # This is required to avoid DCMI conflicts with host services like npu-exporter
+    # Use host PID namespace to avoid driver namespace conflicts
     cat << EOF
 --privileged
+--pid=host
 --security-opt label=disable
 EOF
 
@@ -79,6 +81,10 @@ _ascend_patch_mounts() {
 # We create a second entry for GID 1000 named HwHiAiUser (groupadd -o
 # permits duplicate GIDs) and add the user to it.
 #
+# /root permissions: The uv Python virtual environment at /flagos uses symlinks
+# into /root/.local/share/uv/python/. We set /root to 755 and /root/.local to
+# o+rX so non-root users can traverse to the Python interpreter.
+#
 # This grants the user access to /dev/davinci[0-7] for training workloads
 # (torch_npu, etc). npu-smi (monitoring tool) uses /dev/davinci_manager
 # via DCMI and will fail with -8020 when npu-exporter holds the DCMI lock;
@@ -114,8 +120,45 @@ _ascend_setup_device_permissions() {
         fi
         groupadd -g ${_hw_gid} HwHiAiUser
         usermod -aG HwHiAiUser '${_username}'
+
+        # Fix /root permissions for uv virtual environment access
+        chmod 755 /root 2>/dev/null || true
+        chmod -R o+rX /root/.local 2>/dev/null || true
     "
     print_success "已将用户 ${_username} 加入 HwHiAiUser 组 (GID=${_hw_gid})"
+
+    # ── sudo environment configuration ────────────────────────────────
+    # sudo resets PATH (via secure_path) and strips LD_LIBRARY_PATH (hardcoded
+    # in its unsafe-env list). Fix both:
+    #   1. !secure_path + env_keep PATH  → virtual-env python3 survives sudo
+    #   2. /etc/environment LD_LIBRARY_PATH → PAM injects it before sudo resets env,
+    #      so Ascend .so files are found without any wrapper tricks
+    print_step "配置 sudo 环境变量保留..."
+    docker exec -u root "${CONTAINER_NAME}" bash -c '
+        # sudoers drop-in: preserve PATH and Ascend env vars
+        cat > /etc/sudoers.d/ascend-env << "EOF"
+# Disable secure_path so the active virtual environment PATH is preserved
+Defaults !secure_path
+
+# Preserve user environment variables across sudo
+Defaults env_keep += "PATH VIRTUAL_ENV PYTHONPATH"
+Defaults env_keep += "ASCEND_HOME_PATH ASCEND_TOOLKIT_HOME ASCEND_OPP_PATH ASCEND_AICPU_PATH"
+Defaults env_keep += "TOOLCHAIN_HOME CMAKE_PREFIX_PATH"
+EOF
+        chmod 440 /etc/sudoers.d/ascend-env
+
+        # /etc/environment is read by PAM before sudo resets the environment,
+        # so LD_LIBRARY_PATH set here survives even though sudo strips it from
+        # the inherited environment.
+        if ! grep -q "^LD_LIBRARY_PATH=" /etc/environment 2>/dev/null; then
+            ld_path=$(grep "^export LD_LIBRARY_PATH=" /etc/profile.d/vendor.sh 2>/dev/null \
+                      | sed "s/export LD_LIBRARY_PATH=//;s/'\''//g" | head -1)
+            if [[ -n "$ld_path" ]]; then
+                echo "LD_LIBRARY_PATH=\"${ld_path}\"" >> /etc/environment
+            fi
+        fi
+    '
+    print_success "sudo 环境配置完成（PATH 和 LD_LIBRARY_PATH 已保留）"
 }
 
 # ── Load shared logic ─────────────────────────────────────────────
@@ -147,6 +190,25 @@ _run_container() {
             exit 0
         ' 2>&1 | grep -v "DrvMngGetConsoleLogLevel" || true
         print_success "Ascend 环境已初始化"
+
+        # Fix Python ownership and capabilities for non-root NPU access
+        local _username="$(id -un)"
+        if [[ "$_username" != "root" ]]; then
+            print_step "配置非 root 用户 NPU 访问权限..."
+
+            # Transfer Python ownership to allow LD_LIBRARY_PATH inheritance
+            docker exec -u root "${CONTAINER_NAME}" bash -c "
+                chown -R ${_username}:${_username} /root/.local/share/uv/python/ 2>/dev/null || true
+            "
+
+            # Grant CAP_SYS_ADMIN to bypass namespace checks in Ascend driver
+            docker exec -u root "${CONTAINER_NAME}" bash -c "
+                apt-get update -qq && apt-get install -y -qq libcap2-bin >/dev/null 2>&1
+                setcap cap_sys_admin+eip /root/.local/share/uv/python/*/bin/python3.* 2>/dev/null || true
+            "
+
+            print_success "非 root 用户权限已配置"
+        fi
     fi
 }
 
