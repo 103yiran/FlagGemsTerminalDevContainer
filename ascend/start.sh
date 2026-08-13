@@ -134,9 +134,20 @@ _ascend_setup_device_permissions() {
     #   2. /etc/environment LD_LIBRARY_PATH → PAM injects it before sudo resets env,
     #      so Ascend .so files are found without any wrapper tricks
     print_step "配置 sudo 环境变量保留..."
-    docker exec -u root "${CONTAINER_NAME}" bash -c '
-        # sudoers drop-in: preserve PATH and Ascend env vars
-        cat > /etc/sudoers.d/ascend-env << "EOF"
+    # Write the setup script to a temp file on the host, copy it into the
+    # container, then execute it as root.  Using a file avoids the stdin
+    # limitation of `docker exec ... bash << 'EOF'` (docker exec does not
+    # connect the host's stdin to the container process).
+    local _sudo_setup
+    _sudo_setup=$(mktemp /tmp/ascend_sudo_setup.XXXXXX.sh)
+    cat > "${_sudo_setup}" << 'SCRIPT_EOF'
+#!/bin/bash
+set -e
+
+# sudoers drop-in: disable secure_path so the venv python3 survives sudo,
+# and preserve key env vars.  LANG/LD_LIBRARY_PATH/ASCEND_* come in via
+# /etc/environment (PAM), so env_keep is a belt-and-suspenders extra.
+cat > /etc/sudoers.d/ascend-env << 'SUDOERS'
 # Disable secure_path so the active virtual environment PATH is preserved
 Defaults !secure_path
 
@@ -144,38 +155,38 @@ Defaults !secure_path
 Defaults env_keep += "PATH VIRTUAL_ENV PYTHONPATH"
 Defaults env_keep += "ASCEND_HOME_PATH ASCEND_TOOLKIT_HOME ASCEND_OPP_PATH ASCEND_AICPU_PATH"
 Defaults env_keep += "TOOLCHAIN_HOME CMAKE_PREFIX_PATH"
-EOF
-        chmod 440 /etc/sudoers.d/ascend-env
+Defaults env_keep += "LANG LC_ALL LC_CTYPE LANGUAGE"
+SUDOERS
+chmod 440 /etc/sudoers.d/ascend-env
+visudo -c -f /etc/sudoers.d/ascend-env
 
-        # /etc/environment is read by PAM before sudo resets the environment,
-        # so values set here survive even though sudo strips them from the
-        # inherited environment.  This is also the mechanism that makes
-        # ASCEND_* variables available inside `sudo python3` when the user
-        # launches it from zsh (zsh non-login shells don't source
-        # /etc/profile.d/vendor.sh the way bash does, so the variables would
-        # otherwise be absent and torch_npu._C._get_cann_version would read a
-        # binary fallback path, triggering UnicodeDecodeError).
-        {
-            # Force UTF-8 locale (prevents UnicodeDecodeError in torch_npu C ext)
-            grep -q "^LANG=" /etc/environment || echo "LANG=C.UTF-8"
-            grep -q "^LC_ALL=" /etc/environment || echo "LC_ALL=C.UTF-8"
+# /etc/environment is read by PAM before sudo resets the environment, so
+# values written here survive even though sudo strips them from the inherited
+# env.  This is critical for zsh users: zsh non-login shells never source
+# /etc/profile.d/vendor.sh (unlike bash), so ASCEND_HOME_PATH would be absent
+# and torch_npu._C._get_cann_version would fall back to a binary file and
+# raise UnicodeDecodeError.
+grep -q "^LANG="   /etc/environment 2>/dev/null || echo "LANG=C.UTF-8"   >> /etc/environment
+grep -q "^LC_ALL=" /etc/environment 2>/dev/null || echo "LC_ALL=C.UTF-8" >> /etc/environment
 
-            # LD_LIBRARY_PATH (sudo strips it from inherited env)
-            if ! grep -q "^LD_LIBRARY_PATH=" /etc/environment; then
-                ld_path=$(grep "^export LD_LIBRARY_PATH=" /etc/profile.d/vendor.sh 2>/dev/null \
-                          | sed "s/export LD_LIBRARY_PATH=//;s/'\''//g" | head -1)
-                [[ -n "$ld_path" ]] && echo "LD_LIBRARY_PATH=\"${ld_path}\""
-            fi
+if ! grep -q "^LD_LIBRARY_PATH=" /etc/environment 2>/dev/null; then
+    ld_path=$(grep "^export LD_LIBRARY_PATH=" /etc/profile.d/vendor.sh 2>/dev/null \
+              | sed "s/export LD_LIBRARY_PATH=//;s/'//g" | head -1)
+    [[ -n "$ld_path" ]] && echo "LD_LIBRARY_PATH=\"${ld_path}\"" >> /etc/environment
+fi
 
-            # ASCEND_* variables (zsh non-login shells do not get /etc/profile.d)
-            grep "^export ASCEND" /etc/profile.d/vendor.sh 2>/dev/null \
-                | sed "s/^export //;s/'\''//g" \
-                | while IFS= read -r line; do
-                    key="${line%%=*}"
-                    grep -q "^${key}=" /etc/environment || echo "$line"
-                done
-        } >> /etc/environment
-    '
+grep "^export ASCEND" /etc/profile.d/vendor.sh 2>/dev/null \
+    | sed "s/^export //;s/'//g" \
+    | while IFS= read -r line; do
+        key="${line%%=*}"
+        grep -q "^${key}=" /etc/environment 2>/dev/null || echo "$line" >> /etc/environment
+    done
+SCRIPT_EOF
+
+    docker cp "${_sudo_setup}" "${CONTAINER_NAME}:/tmp/ascend_sudo_setup.sh"
+    docker exec -u root "${CONTAINER_NAME}" bash /tmp/ascend_sudo_setup.sh
+    docker exec -u root "${CONTAINER_NAME}" rm -f /tmp/ascend_sudo_setup.sh
+    rm -f "${_sudo_setup}"
     print_success "sudo 环境配置完成（PATH、LD_LIBRARY_PATH、ASCEND_* 已保留）"
 
     # ── ldconfig for capabilities-enabled Python ──────────────────────
