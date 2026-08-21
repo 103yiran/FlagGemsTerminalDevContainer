@@ -62,6 +62,13 @@ ASCEND_EXTRA_MOUNTS=(
     -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi
 )
 
+# ── Platform user groups ──────────────────────────────────────────
+# Groups to add the user to during creation (HwHiAiUser is required for NPU access).
+# This function will be called by common/lib.sh during user creation.
+platform_user_groups() {
+    echo "HwHiAiUser"
+}
+
 # ── Platform environment variables ────────────────────────────────
 # Add Ascend driver libraries to LD_LIBRARY_PATH
 ASCEND_ENV_VARS=(
@@ -104,6 +111,8 @@ _ascend_setup_device_permissions() {
     docker exec -u root "${CONTAINER_NAME}" bash -c "
         set -e
         # Ascend driver checks group membership by name 'HwHiAiUser', not GID.
+        # Ensure HwHiAiUser group exists with the correct GID matching the device.
+
         # If GID ${_hw_gid} is already used by 'ubuntu' group, move it to avoid conflict.
         if getent group ubuntu | grep -q ':${_hw_gid}:'; then
             # Find next available GID
@@ -114,18 +123,27 @@ _ascend_setup_device_permissions() {
             groupmod -g \$new_gid ubuntu 2>/dev/null || true
         fi
 
-        # Remove old HwHiAiUser if it exists with wrong GID, then create with correct GID
+        # Update HwHiAiUser GID if it exists with wrong GID
         if getent group HwHiAiUser >/dev/null 2>&1; then
-            groupdel HwHiAiUser 2>/dev/null || true
+            current_gid=\$(getent group HwHiAiUser | cut -d: -f3)
+            if [ \"\$current_gid\" != \"${_hw_gid}\" ]; then
+                groupmod -g ${_hw_gid} HwHiAiUser
+            fi
+        else
+            # Create HwHiAiUser group if it doesn't exist
+            groupadd -g ${_hw_gid} HwHiAiUser
         fi
-        groupadd -g ${_hw_gid} HwHiAiUser
-        usermod -aG HwHiAiUser '${_username}'
+
+        # Ensure the user is in the HwHiAiUser group (idempotent)
+        if ! id -nG '${_username}' | grep -qw HwHiAiUser; then
+            usermod -aG HwHiAiUser '${_username}'
+        fi
 
         # Fix /root permissions for uv virtual environment access
         chmod 755 /root 2>/dev/null || true
         chmod -R o+rX /root/.local 2>/dev/null || true
     "
-    print_success "已将用户 ${_username} 加入 HwHiAiUser 组 (GID=${_hw_gid})"
+    print_success "已配置用户 ${_username} 的 Ascend 设备访问权限 (HwHiAiUser GID=${_hw_gid})"
 
     # ── sudo environment configuration ────────────────────────────────
     # sudo resets PATH (via secure_path) and strips LD_LIBRARY_PATH (hardcoded

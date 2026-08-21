@@ -91,6 +91,8 @@ RUN apt-get update \
 # ------------------------------------------------------------------
 # Neovim stable (>= 0.11) via neovim-ppa/unstable
 # add-apt-repository requires api.launchpad.net; add the PPA manually instead.
+# Note: lib.sh (run→exec→commit path) installs via NJU mirror tarball instead,
+# as the PPA keyserver may be unreachable in some build environments.
 # ------------------------------------------------------------------
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl gnupg \

@@ -189,10 +189,16 @@ _build_dev() {
         local _base_name="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION}}"
         local base_image="${_base_name}:${BASE_IMAGE_TAG}"
         local build_ctr="flaggems-build-$$"
-        local _username _uid _gid
+        local _username _uid _gid _extra_groups
         _username="$(id -un)"
         _uid="$(id -u)"
         _gid="$(id -g)"
+
+        # Platform-specific user groups (e.g., HwHiAiUser for Ascend)
+        _extra_groups=""
+        if declare -f platform_user_groups > /dev/null 2>&1; then
+            _extra_groups="$(platform_user_groups)"
+        fi
 
         # Ensure the build container is removed even if the build fails
         trap "docker rm -f '$build_ctr' 2>/dev/null || true" EXIT
@@ -237,53 +243,58 @@ if [ \"\$PLATFORM\" = 'nvidia' ]; then
         --index-url https://mirrors.aliyun.com/pypi/simple/ \
         pre-commit==3.7.1 flake8==7.1.0 black==23.7.0 isort==5.12.0
 fi
+
+# Create platform-specific groups before user creation
+EXTRA_GROUPS='${_extra_groups}'
+if [ -n \"\$EXTRA_GROUPS\" ]; then
+    for grp in \$EXTRA_GROUPS; do
+        if ! getent group \"\$grp\" >/dev/null 2>&1; then
+            groupadd \"\$grp\" 2>/dev/null || true
+        fi
+    done
+fi
+
 groupadd --gid '${_gid}' '${_username}'
-useradd --uid '${_uid}' --gid '${_gid}' -m -s /usr/bin/zsh '${_username}'
+if [ -n \"\$EXTRA_GROUPS\" ]; then
+    # Create user with additional groups
+    useradd --uid '${_uid}' --gid '${_gid}' -G \"\$EXTRA_GROUPS\" -m -s /usr/bin/zsh '${_username}'
+else
+    useradd --uid '${_uid}' --gid '${_gid}' -m -s /usr/bin/zsh '${_username}'
+fi
 echo '${_username} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/'${_username}'
 chmod 0440 /etc/sudoers.d/'${_username}'
 rm -rf /var/lib/apt/lists/*
 
 # Layer 4: Neovim >= 0.11
 # Skip if the base image already ships a satisfying version; otherwise download
-# AppImage from NJU mirror (LatestRelease) with apt as fallback.
+# the tarball from NJU mirror (LatestRelease) with apt as fallback.
 if nvim --version 2>/dev/null | head -1 | grep -qE 'NVIM v(0\.(1[1-9]|[2-9][0-9])|[1-9][0-9])'; then
     echo 'neovim already satisfies >= 0.11, skipping install'
     nvim --version | head -1
 else
     _nvim_installed=false
 
-    # Attempt 1: NJU mirror AppImage (LatestRelease, reliable in CN, architecture-aware)
+    # NJU mirror tarball (LatestRelease, no FUSE required, architecture-aware)
+    # Use -w to check HTTP status; avoid `file` command which may not be present.
     _nvim_darch=\$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x86_64/')
-    _nvim_filename=\"nvim-linux-\${_nvim_darch}.appimage\"
-    for _mirror in \
-        \"https://mirror.nju.edu.cn/github-release/neovim/neovim/LatestRelease/\${_nvim_filename}\"
-    do
-        echo \"Trying: \${_mirror}\"
-        if curl -fsSL --retry 2 --connect-timeout 15 \"\${_mirror}\" -o /tmp/nvim.appimage; then
-            if file /tmp/nvim.appimage | grep -qE 'ELF|executable'; then
-                mv /tmp/nvim.appimage /usr/local/bin/nvim
-                chmod +x /usr/local/bin/nvim
-                if nvim --version 2>/dev/null | head -1 | grep -q 'NVIM'; then
-                    nvim --version | head -1
-                    _nvim_installed=true
-                    break
-                fi
-            else
-                echo \"Non-binary response from \${_mirror}, trying next...\"
-                rm -f /tmp/nvim.appimage
-            fi
+    _nvim_filename=\"nvim-linux-\${_nvim_darch}.tar.gz\"
+    _nvim_url=\"https://mirror.nju.edu.cn/github-release/neovim/neovim/LatestRelease/\${_nvim_filename}\"
+    echo \"Trying: \${_nvim_url}\"
+    rm -f /tmp/nvim.tar.gz
+    _http_code=\$(curl -fsSL --retry 2 --connect-timeout 15 \
+        -w '%{http_code}' \"\${_nvim_url}\" -o /tmp/nvim.tar.gz 2>/dev/null || true)
+    if [ \"\${_http_code}\" = '200' ] && [ -s /tmp/nvim.tar.gz ]; then
+        tar -xzf /tmp/nvim.tar.gz -C /usr/local --strip-components=1
+        rm -f /tmp/nvim.tar.gz
+        if nvim --version 2>/dev/null | head -1 | grep -qE 'NVIM v(0\.(1[1-9]|[2-9][0-9])|[1-9][0-9])'; then
+            nvim --version | head -1
+            _nvim_installed=true
+        else
+            echo 'WARNING: tarball extracted but nvim binary check failed'
         fi
-    done
-
-    # Attempt 2: apt install (fallback; version may be older)
-    if [ \"\$_nvim_installed\" = false ]; then
-        echo 'AppImage download failed, falling back to apt...'
-        if apt-get install -y --no-install-recommends neovim 2>/dev/null; then
-            if nvim --version 2>/dev/null | head -1 | grep -q 'NVIM'; then
-                nvim --version | head -1
-                _nvim_installed=true
-            fi
-        fi
+    else
+        rm -f /tmp/nvim.tar.gz
+        echo \"NJU tarball download failed (HTTP \${_http_code})\"
     fi
 
     if [ \"\$_nvim_installed\" = false ]; then
