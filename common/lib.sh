@@ -399,6 +399,7 @@ _run_container() {
         docker run -d \
             --name "${CONTAINER_NAME}" \
             "${hw_args[@]}" \
+            --user=root \
             --net=host \
             --ipc=host \
             --cap-add=SYS_PTRACE \
@@ -416,7 +417,7 @@ _run_container() {
 
         print_step "运行 setup.sh 初始化容器环境..."
         docker cp "${repo_root}/common/setup.sh" "${CONTAINER_NAME}:/tmp/setup.sh"
-        docker exec --user "$(id -u):$(id -g)" "${CONTAINER_NAME}" zsh /tmp/setup.sh
+        docker exec --user "$(id -un)" "${CONTAINER_NAME}" zsh /tmp/setup.sh
         docker exec "${CONTAINER_NAME}" rm /tmp/setup.sh
         print_success "setup.sh 执行完毕"
 
@@ -454,7 +455,11 @@ lib_main() {
     _run_container "$script_dir" "$repo_root"
 
     print_step "进入容器: ${CONTAINER_NAME} — exec: ${EXEC_COMMAND[*]}"
-    docker exec -it "${CONTAINER_NAME}" "${EXEC_COMMAND[@]}"
+    # Use username (not uid:gid) so Docker resolves supplementary groups from
+    # /etc/group inside the container.  This is required for Ascend NPU access:
+    # the driver checks membership of group 'HwHiAiUser' which is a supplementary
+    # group — uid:gid mode only sets the primary group and skips supplementary ones.
+    docker exec -it -u "$(id -un)" -w "${WORKSPACE_DIR}" "${CONTAINER_NAME}" "${EXEC_COMMAND[@]}"
 
     echo ""
     print_step "已退出容器（容器仍在后台运行）"

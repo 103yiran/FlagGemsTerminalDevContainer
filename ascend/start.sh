@@ -43,15 +43,17 @@ platform_hardware_args() {
 --security-opt label=disable
 EOF
 
-    # Add group access for Ascend devices
-    local davinci_gid=""
-    if [[ -e /dev/davinci0 ]]; then
-        davinci_gid=$(stat -c '%g' /dev/davinci0 2>/dev/null || true)
-    fi
-
-    if [[ -n "$davinci_gid" ]]; then
-        echo "--group-add=$davinci_gid"
-    fi
+    # Explicitly mount Ascend device files so the kernel driver registers this
+    # container's namespace (owned by root, see --user=root in _run_container).
+    # Without explicit --device flags, /dev/devmm_svm and /dev/hisi_hdc are
+    # absent inside the container, which breaks both torch_npu and npu-smi.
+    for dev in \
+        /dev/davinci0 /dev/davinci1 /dev/davinci2 /dev/davinci3 \
+        /dev/davinci4 /dev/davinci5 /dev/davinci6 /dev/davinci7 \
+        /dev/davinci_manager /dev/devmm_svm /dev/hisi_hdc
+    do
+        [[ -e "$dev" ]] && echo "--device=${dev}"
+    done
 }
 
 # ── Platform extra mounts ─────────────────────────────────────────
