@@ -120,43 +120,64 @@ if [[ ! -d "${HOME}/.config/nvim" ]]; then
                 "${HOME}/.config/nvim"; then
             rm -rf "${HOME}/.config/nvim/.git"
 
-            # ── Patch 1: lazy.nvim bootstrap URL ──────────────────────────
-            # The starter's init.lua clones folke/lazy.nvim from GitHub.
-            # Redirect it to the gitcode GitHub_Trending mirror instead.
-            # GitHub_Trending pattern: GitHub_Trending/<repo[0:2]>/<repo>
-            #   folke/lazy.nvim → GitHub_Trending/la/lazy.nvim
-            sed -i \
-                's|https://github.com/folke/lazy.nvim.git|git@gitcode.com:GitHub_Trending/la/lazy.nvim.git|g' \
-                "${HOME}/.config/nvim/init.lua" \
-                || warn "Could not patch init.lua bootstrap URL"
-
-            # ── Patch 2: lazy.nvim plugin sync URL format ─────────────────
-            # Overwrite lua/config/lazy.lua to add git.url_format so every
-            # plugin lazy downloads uses the gitcode GitHub_Trending mirror.
-            # url_format receives "org/repo"; we extract just the repo name
-            # and compute the two-char prefix (lazy.nvim stable supports
-            # both string and function for this option).
+            # ── Patch: lua/config/lazy.lua with gitcode mirrors ───────────
+            # Overwrite lua/config/lazy.lua to:
+            # 1. Bootstrap lazy.nvim from gitcode GitHub_Trending/la/lazy.nvim
+            # 2. Hook Plugin.init to rewrite each plugin's GitHub URL to gitcode
+            #    Pattern: GitHub_Trending/<repo-name[0:2]>/<repo-name>
             cat > "${HOME}/.config/nvim/lua/config/lazy.lua" << 'LUA'
+-- Bootstrap lazy.nvim
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not (vim.uv or vim.loop).fs_stat(lazypath) then
+  local lazyrepo = "git@gitcode.com:GitHub_Trending/la/lazy.nvim.git"
+  local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+  if vim.v.shell_error ~= 0 then
+    vim.api.nvim_echo({
+      { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
+      { out, "WarningMsg" },
+      { "\nPress any key to exit..." },
+    }, true, {})
+    vim.fn.getchar()
+    os.exit(1)
+  end
+end
+vim.opt.rtp:prepend(lazypath)
+
+-- Hook Plugin.init to rewrite GitHub URLs to gitcode GitHub_Trending mirrors
+local Plugin = require("lazy.core.plugin")
+local init_orig = Plugin.init
+Plugin.init = function(self, spec, ...)
+  init_orig(self, spec, ...)
+  if self.url and self.url:match("^https://github%.com/") then
+    local org, repo = self.url:match("github%.com/([^/]+)/([^/%.]+)")
+    if repo then
+      local prefix = repo:sub(1, 2):lower()
+      self.url = ("git@gitcode.com:GitHub_Trending/%s/%s.git"):format(prefix, repo)
+    end
+  end
+end
+
 require("lazy").setup({
   spec = {
     { "LazyVim/LazyVim", import = "lazyvim.plugins" },
     { import = "plugins" },
   },
-  defaults = { lazy = false, version = false },
+  defaults = {
+    lazy = false,
+    version = false,
+  },
   install = { colorscheme = { "tokyonight", "habamax" } },
   checker = { enabled = true },
-  git = {
-    -- Use gitcode.com GitHub_Trending mirrors for all plugins.
-    -- Pattern: GitHub_Trending/<first-2-chars-of-repo-lowercase>/<repo>
-    -- Examples:
-    --   folke/lazy.nvim    → GitHub_Trending/la/lazy.nvim
-    --   LazyVim/LazyVim   → GitHub_Trending/la/LazyVim
-    --   nvim-lua/plenary.nvim → GitHub_Trending/pl/plenary.nvim
-    url_format = function(source)
-      local repo = source:match("([^/]+)$") or source
-      local prefix = repo:sub(1, 2):lower()
-      return ("git@gitcode.com:GitHub_Trending/%s/%s.git"):format(prefix, repo)
-    end,
+  performance = {
+    rtp = {
+      disabled_plugins = {
+        "gzip",
+        "tarPlugin",
+        "tohtml",
+        "tutor",
+        "zipPlugin",
+      },
+    },
   },
 })
 LUA
