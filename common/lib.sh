@@ -205,8 +205,13 @@ _build_dev() {
         # baked into the image with corrected permissions).
         local _platform_build_args=()
         if declare -f platform_build_args > /dev/null 2>&1; then
-            while IFS= read -r _arg; do
-                [[ -n "$_arg" ]] && _platform_build_args+=("$_arg")
+            while IFS= read -r _line; do
+                [[ -n "$_line" ]] || continue
+                # Split each line into words so "-v /path:/path:ro" becomes
+                # two separate array elements ("-v" and "/path:/path:ro"),
+                # which is what docker run expects.
+                read -ra _words <<< "$_line"
+                _platform_build_args+=("${_words[@]}")
             done < <(platform_build_args)
         fi
 
