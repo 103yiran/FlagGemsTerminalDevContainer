@@ -143,18 +143,23 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Hook Plugin.init to rewrite GitHub URLs to gitcode GitHub_Trending mirrors
-local Plugin = require("lazy.core.plugin")
-local init_orig = Plugin.init
-Plugin.init = function(self, spec, ...)
-  init_orig(self, spec, ...)
-  if self.url and self.url:match("^https://github%.com/") then
-    local org, repo = self.url:match("github%.com/([^/]+)/([^/%.]+)")
-    if repo then
-      local prefix = repo:sub(1, 2):lower()
-      self.url = ("git@gitcode.com:GitHub_Trending/%s/%s.git"):format(prefix, repo)
-    end
+-- Rewrite GitHub URLs to gitcode GitHub_Trending mirrors.
+-- lazy.nvim resolves short "owner/repo" specs to https://github.com/owner/repo
+-- before calling url_rewrite, so we only need to handle that prefix.
+-- The gitcode mirror name keeps the original repo name (including .nvim/.vim),
+-- so we do NOT strip the suffix — just change the host and path layout.
+local function gitcode_url(url)
+  if not url or not url:match("^https://github%.com/") then
+    return url
   end
+  -- url is like https://github.com/folke/snacks.nvim
+  local org, repo = url:match("github%.com/([^/]+)/([^/]+)")
+  if not org or not repo then return url end
+  -- Remove trailing .git if lazy appended it
+  repo = repo:gsub("%.git$", "")
+  -- gitcode GitHub_Trending uses first-two-chars of the REPO name as sub-org
+  local prefix = repo:sub(1, 2):lower()
+  return ("git@gitcode.com:GitHub_Trending/%s/%s.git"):format(prefix, repo)
 end
 
 require("lazy").setup({
@@ -165,6 +170,10 @@ require("lazy").setup({
   defaults = {
     lazy = false,
     version = false,
+  },
+  git = {
+    -- Use gitcode mirrors; fall back to original URL on clone failure
+    url_rewrite = gitcode_url,
   },
   install = { colorscheme = { "tokyonight", "habamax" } },
   checker = { enabled = true },
