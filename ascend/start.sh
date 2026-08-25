@@ -57,9 +57,12 @@ EOF
 }
 
 # ── Platform extra mounts ─────────────────────────────────────────
-# Ascend requires driver, dcmi and npu-smi from the host.
+# Ascend only needs npu-smi and dcmi from the host at runtime.
+# The driver is baked into the dev image during _build_dev (see
+# platform_post_build_exec below) so it is not bind-mounted here —
+# bind-mounting would shadow the image copy and re-expose the immutable
+# host files that non-root users cannot read.
 ASCEND_EXTRA_MOUNTS=(
-    -v /usr/local/Ascend/driver:/usr/local/Ascend/driver
     -v /usr/local/dcmi:/usr/local/dcmi
     -v /usr/local/sbin/npu-smi:/usr/local/sbin/npu-smi
 )
@@ -71,8 +74,63 @@ platform_user_groups() {
     echo "HwHiAiUser"
 }
 
+# ── Platform build-container extra args ──────────────────────────
+# Mount the host driver read-only into the build container so
+# platform_post_build_exec can copy it into the image layer.
+platform_build_args() {
+    [[ -d /usr/local/Ascend/driver ]] && echo "-v /usr/local/Ascend/driver:/tmp/host-ascend-driver:ro" || true
+    [[ -d /usr/local/dcmi          ]] && echo "-v /usr/local/dcmi:/tmp/host-dcmi:ro"                   || true
+}
+
+# ── Platform post-build hook ──────────────────────────────────────
+# Copy the Ascend driver and dcmi from the host into the image, then
+# fix permissions so non-root users can read the .so files.
+#
+# WHY this is necessary:
+#   The host driver files (e.g. driver/lib64/common/libaivault.so) have
+#   permissions 0400 and owner uid=1000 (HwHiAiUser user), plus chattr +i
+#   (immutable).  Even container root cannot chmod them.  A bind-mount
+#   exposes those raw host permissions inside the container, so any user
+#   with uid != 1000 gets EACCES when aclInit tries to dlopen the .so,
+#   yielding error 507899.
+#
+#   By copying the files into the image layer during build (where root has
+#   full ownership of the copy) and running chmod a+rX, the resulting image
+#   has world-readable driver libs.  At runtime we no longer bind-mount
+#   /usr/local/Ascend/driver, so the fixed copy is what the container sees.
+platform_post_build_exec() {
+    local _ctr="$1"
+
+    if [[ -d /usr/local/Ascend/driver ]]; then
+        print_step "将 Ascend driver 烘焙进镜像并修复权限..."
+        docker exec -u root "$_ctr" bash -c '
+            set -e
+            cp -a /tmp/host-ascend-driver /usr/local/Ascend/driver
+            # Remove immutable flag if present (chattr +i from the host copy)
+            chattr -Ri /usr/local/Ascend/driver 2>/dev/null || true
+            chmod -R a+rX /usr/local/Ascend/driver
+            echo "driver baked: $(du -sh /usr/local/Ascend/driver | cut -f1)"
+        '
+    fi
+
+    if [[ -d /usr/local/dcmi ]]; then
+        print_step "将 dcmi 烘焙进镜像并修复权限..."
+        docker exec -u root "$_ctr" bash -c '
+            set -e
+            cp -a /tmp/host-dcmi /usr/local/dcmi
+            chattr -Ri /usr/local/dcmi 2>/dev/null || true
+            chmod -R a+rX /usr/local/dcmi
+        '
+    fi
+}
+
 # ── Platform environment variables ────────────────────────────────
-# Add Ascend driver libraries to LD_LIBRARY_PATH
+# Pass driver LD_LIBRARY_PATH at container creation time so it is available
+# in every docker exec session (docker exec skips PAM, so /etc/environment
+# is never loaded).  ASCEND_HOME_PATH and other CANN vars are version-specific
+# paths that live in vendor.sh inside the image; we inject them into the
+# user's shell rc at setup time (see _ascend_inject_shell_env below) so they
+# survive across sessions without hard-coding a version string here.
 ASCEND_ENV_VARS=(
     -e LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:/usr/local/dcmi:\${LD_LIBRARY_PATH}
 )
@@ -93,6 +151,14 @@ _ascend_patch_mounts() {
 # /root permissions: The uv Python virtual environment at /flagos uses symlinks
 # into /root/.local/share/uv/python/. We set /root to 755 and /root/.local to
 # o+rX so non-root users can traverse to the Python interpreter.
+#
+# driver permissions: The driver is baked into the image by platform_post_build_exec
+# with a+rX, so no runtime chmod is needed here.
+#
+# dcmi permissions: /usr/local/dcmi is still bind-mounted from the host (dcmi
+# is also baked but the mount shadows it — see below for the chmod).  The host
+# dcmi files have permissive permissions (r--r--r-- root:root) so no fix is
+# needed for dcmi either; but we chmod o+rX defensively.
 #
 # This grants the user access to /dev/davinci[0-7] for training workloads
 # (torch_npu, etc). npu-smi (monitoring tool) uses /dev/davinci_manager
@@ -141,9 +207,22 @@ _ascend_setup_device_permissions() {
             usermod -aG HwHiAiUser '${_username}'
         fi
 
+        # Make Ascend device files group-accessible so non-root members of
+        # HwHiAiUser can open them. The kernel driver sets these to mode 0600
+        # (owner root) on some hosts; group-read/write is required for NPU access.
+        for dev in /dev/davinci0 /dev/davinci1 /dev/davinci2 /dev/davinci3 \
+                   /dev/davinci4 /dev/davinci5 /dev/davinci6 /dev/davinci7 \
+                   /dev/davinci_manager /dev/devmm_svm /dev/hisi_hdc; do
+            [[ -e \"\$dev\" ]] && chmod g+rw \"\$dev\" 2>/dev/null || true
+        done
+
         # Fix /root permissions for uv virtual environment access
         chmod 755 /root 2>/dev/null || true
         chmod -R o+rX /root/.local 2>/dev/null || true
+
+        # /usr/local/dcmi is bind-mounted; chmod defensively (files are typically
+        # already r--r--r-- on most hosts, but be safe).
+        chmod -R o+rX /usr/local/dcmi 2>/dev/null || true
     "
     print_success "已配置用户 ${_username} 的 Ascend 设备访问权限 (HwHiAiUser GID=${_hw_gid})"
 
@@ -213,23 +292,112 @@ SCRIPT_EOF
     # When Python has file capabilities (CAP_SYS_ADMIN), the dynamic linker
     # ignores LD_LIBRARY_PATH for security. Add Ascend libraries to the
     # system cache so they're found without LD_LIBRARY_PATH.
+    # Paths are discovered dynamically so the config survives CANN version changes.
     print_step "配置系统库缓存 (ldconfig)..."
     docker exec -u root "${CONTAINER_NAME}" bash -c '
-        cat > /etc/ld.so.conf.d/ascend.conf << "EOF"
-/usr/local/Ascend/driver/lib64
-/usr/local/Ascend/driver/lib64/common
-/usr/local/Ascend/driver/lib64/driver
-/usr/local/Ascend/cann-9.0.0/lib64
-/usr/local/Ascend/cann-9.0.0/lib64/plugin/opskernel
-/usr/local/Ascend/cann-9.0.0/lib64/plugin/nnengine
-/usr/local/Ascend/ascend-toolkit/latest/lib64
-/usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel
-/usr/local/Ascend/nnal/atb/latest/atb/cxx_abi_1/lib
-/usr/local/dcmi
-EOF
+        {
+            # Driver libs (bind-mount from host, always fixed paths)
+            echo /usr/local/Ascend/driver/lib64
+            echo /usr/local/Ascend/driver/lib64/common
+            echo /usr/local/Ascend/driver/lib64/driver
+            echo /usr/local/dcmi
+
+            # CANN versioned lib64 — discover actual version directories
+            find /usr/local/Ascend -maxdepth 3 -name "lib64" -type d 2>/dev/null \
+                | grep -v ascend-toolkit | grep -v nnal || true
+
+            # ascend-toolkit via the "latest" symlink
+            for p in \
+                /usr/local/Ascend/ascend-toolkit/latest/lib64 \
+                /usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel \
+                /usr/local/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine
+            do
+                [[ -d "$p" ]] && echo "$p" || true
+            done
+
+            # ATB lib (cxx_abi_1 or cxx_abi_0)
+            find /usr/local/Ascend/nnal -maxdepth 6 -name "lib" -type d 2>/dev/null || true
+        } | sort -u > /etc/ld.so.conf.d/ascend.conf
         ldconfig
     '
     print_success "系统库缓存已更新"
+}
+
+# Inject ASCEND_* environment variables from vendor.sh into the user's shell
+# rc files (~/.zshrc and ~/.bashrc) inside the container.
+#
+# Why not source vendor.sh wholesale?
+#   vendor.sh sets PYTHONPATH to CANN's own Python packages, which shadows
+#   /flagos site-packages and breaks `import triton` and other packages
+#   installed in the FlagOS venv.  We cherry-pick only the vars that
+#   torch_npu needs (ASCEND_HOME_PATH, ASCEND_TOOLKIT_HOME, ASCEND_OPP_PATH,
+#   ASCEND_AICPU_PATH) plus PATH additions, and leave PYTHONPATH alone.
+#
+# Why not use /etc/environment?
+#   docker exec skips PAM, so /etc/environment is never loaded in interactive
+#   sessions started via `docker exec`.  Shell rc files are the only reliable
+#   mechanism.
+_ascend_inject_shell_env() {
+    local _username="$(id -un)"
+    print_step "注入 Ascend 环境变量到用户 shell rc..."
+
+    local _inject_script
+    _inject_script=$(mktemp /tmp/ascend_inject_env.XXXXXX.sh)
+    cat > "${_inject_script}" << 'SCRIPT_EOF'
+#!/bin/bash
+set -e
+
+VENDOR="/etc/profile.d/vendor.sh"
+MARKER="# >>> ascend-env (managed by start.sh) >>>"
+MARKER_END="# <<< ascend-env <<<"
+
+if [[ ! -f "$VENDOR" ]]; then
+    echo "[WARN] $VENDOR not found, skipping shell env injection" >&2
+    exit 0
+fi
+
+# Build the block to inject: export every ASCEND_* var from vendor.sh,
+# plus PATH additions, but skip PYTHONPATH (it shadows /flagos venv packages).
+ENV_BLOCK="$MARKER"$'\n'
+while IFS= read -r line; do
+    # Skip PYTHONPATH — it prepends CANN's site-packages and breaks /flagos venv
+    [[ "$line" =~ ^export\ PYTHONPATH= ]] && continue
+    # Include ASCEND_*, ATB_*, PATH, LD_LIBRARY_PATH, CMAKE_PREFIX_PATH, TOOLCHAIN_HOME
+    if [[ "$line" =~ ^export\ (ASCEND_|ATB_|PATH=|LD_LIBRARY_PATH=|CMAKE_PREFIX_PATH=|TOOLCHAIN_HOME=) ]]; then
+        ENV_BLOCK+="$line"$'\n'
+    fi
+done < <(grep "^export " "$VENDOR")
+# Ensure /flagos/bin leads PATH so `python3` resolves to the FlagOS venv
+# interpreter rather than the system one (/usr/bin/python3).
+ENV_BLOCK+='export PATH=/flagos/bin:$PATH'$'\n'
+ENV_BLOCK+="$MARKER_END"
+
+# Write the block into ~/.zshrc and ~/.bashrc (idempotent: replace if exists)
+for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+    [[ -f "$rc" ]] || touch "$rc"
+    if grep -qF "$MARKER" "$rc" 2>/dev/null; then
+        # Replace existing block
+        python3 - "$rc" "$ENV_BLOCK" << 'PYEOF'
+import sys, re
+rc_path, block = sys.argv[1], sys.argv[2]
+content = open(rc_path).read()
+pattern = r'# >>> ascend-env \(managed by start\.sh\) >>>.*?# <<< ascend-env <<<'
+new_content = re.sub(pattern, block, content, flags=re.DOTALL)
+open(rc_path, 'w').write(new_content)
+PYEOF
+    else
+        printf '\n%s\n' "$ENV_BLOCK" >> "$rc"
+    fi
+done
+
+echo "[OK] Ascend env injected into ~/.zshrc and ~/.bashrc"
+SCRIPT_EOF
+
+    docker cp "${_inject_script}" "${CONTAINER_NAME}:/tmp/ascend_inject_env.sh"
+    docker exec -u "${_username}" "${CONTAINER_NAME}" bash /tmp/ascend_inject_env.sh
+    docker exec -u root "${CONTAINER_NAME}" rm -f /tmp/ascend_inject_env.sh
+    rm -f "${_inject_script}"
+    print_success "Ascend 环境变量已注入用户 shell rc（PYTHONPATH 已排除以保护 /flagos venv）"
 }
 
 # ── Load shared logic ─────────────────────────────────────────────
@@ -251,16 +419,40 @@ _run_container() {
     # Setup device permissions after container is created
     if container_running; then
         _ascend_setup_device_permissions
+        _ascend_inject_shell_env
 
         # Initialize Ascend environment (critical for DCMI to work)
         print_step "初始化 Ascend 运行环境..."
         docker exec "${CONTAINER_NAME}" bash -c '
-            source /usr/local/Ascend/ascend-toolkit/set_env.sh 2>/dev/null || true
-            source /usr/local/Ascend/cann-9.0.0/share/info/ascendnpu-ir/bin/set_env.sh 2>/dev/null || true
-            source /usr/local/Ascend/nnal/atb/set_env.sh 2>/dev/null || true
+            # Source set_env.sh from whichever CANN version is installed,
+            # without hard-coding the version string.
+            for f in \
+                /usr/local/Ascend/ascend-toolkit/set_env.sh \
+                /usr/local/Ascend/nnal/atb/set_env.sh \
+                $(find /usr/local/Ascend -maxdepth 4 -name set_env.sh 2>/dev/null | grep -v ascend-toolkit | head -1)
+            do
+                [[ -f "$f" ]] && source "$f" 2>/dev/null || true
+            done
             exit 0
         ' 2>&1 | grep -v "DrvMngGetConsoleLogLevel" || true
         print_success "Ascend 环境已初始化"
+
+        # Restart the container so usermod group changes take effect.
+        # docker exec spawns a new process whose supplementary groups are loaded
+        # from /etc/group at exec time, so a restart is not strictly required —
+        # but it ensures /proc/1 (the sleep entrypoint) also sees the updated
+        # groups, which some DCMI/HCCL probes check.
+        print_step "重启容器以使组成员变更生效..."
+        docker restart "${CONTAINER_NAME}" > /dev/null
+        # Wait until the container is running again before handing control back
+        local _wait=0
+        until container_running || [[ $_wait -ge 15 ]]; do
+            sleep 1
+            _wait=$(( _wait + 1 ))
+        done
+        container_running \
+            && print_success "容器已重启，NPU 设备访问已就绪" \
+            || { print_error "容器重启超时，请手动检查: docker ps -a | grep ${CONTAINER_NAME}"; return 1; }
     fi
 }
 

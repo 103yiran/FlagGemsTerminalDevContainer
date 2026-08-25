@@ -200,6 +200,16 @@ _build_dev() {
             _extra_groups="$(platform_user_groups)"
         fi
 
+        # Collect any extra docker run args the platform wants for the build
+        # container (e.g. Ascend mounts the host driver read-only so it can be
+        # baked into the image with corrected permissions).
+        local _platform_build_args=()
+        if declare -f platform_build_args > /dev/null 2>&1; then
+            while IFS= read -r _arg; do
+                [[ -n "$_arg" ]] && _platform_build_args+=("$_arg")
+            done < <(platform_build_args)
+        fi
+
         # Ensure the build container is removed even if the build fails
         trap "docker rm -f '$build_ctr' 2>/dev/null || true" EXIT
 
@@ -207,6 +217,7 @@ _build_dev() {
         docker run -d \
             --name "$build_ctr" \
             --security-opt seccomp=unconfined \
+            "${_platform_build_args[@]}" \
             "$base_image" \
             sleep infinity
 
@@ -313,6 +324,15 @@ rm /tmp/node.tar.xz
 npm install -g @anthropic-ai/claude-code \
     --registry https://registry.npmmirror.com
 "
+        # Platform post-build hook: runs inside the build container as root.
+        # Used e.g. by Ascend to copy the host driver into the image and fix
+        # permissions so non-root users can read the .so files.
+        if declare -f platform_post_build_exec > /dev/null 2>&1; then
+            print_step "运行平台 post-build 钩子..."
+            platform_post_build_exec "$build_ctr"
+            print_success "平台 post-build 钩子完成"
+        fi
+
         # Commit the container as the dev image with metadata
         docker commit \
             --change "ENV UV_CACHE_DIR=/usr/local/share/uv" \
