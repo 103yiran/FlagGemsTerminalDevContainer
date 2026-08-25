@@ -110,7 +110,13 @@ if [[ ! -d "${HOME}/.config/nvim" ]]; then
         warn "To install later: ensure ~/.ssh/id_ed25519 exists and re-run setup.sh."
     else
         info "Installing LazyVim starter config..."
-        if git clone --depth=1 git@gitcode.com:GitHub_Trending/la/LazyVim.git \
+        # Clone the starter *template* (LazyVim/starter), not the plugin
+        # repo (LazyVim/LazyVim).  The plugin repo ships a hard-coded check
+        # that prints "Do not use this repository directly / Press any key to
+        # exit" and blocks — causing nvim --headless to hang forever.
+        if git clone --depth=1 git@gitcode.com:GitHub_Trending/la/starter.git \
+                "${HOME}/.config/nvim" \
+            || git clone --depth=1 https://github.com/LazyVim/starter.git \
                 "${HOME}/.config/nvim"; then
             rm -rf "${HOME}/.config/nvim/.git"
 
@@ -127,7 +133,7 @@ return {
 LUA
 
             info "Syncing LazyVim plugins (this may take a while)..."
-            nvim --headless "+Lazy! sync" +qa \
+            timeout 300 nvim --headless "+Lazy! sync" +qa \
                 || warn "Lazy sync exited non-zero — some plugins may be missing"
         else
             warn "LazyVim clone failed — skipping nvim setup"
