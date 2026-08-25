@@ -114,16 +114,54 @@ if [[ ! -d "${HOME}/.config/nvim" ]]; then
         # repo (LazyVim/LazyVim).  The plugin repo ships a hard-coded check
         # that prints "Do not use this repository directly / Press any key to
         # exit" and blocks — causing nvim --headless to hang forever.
-        if git clone --depth=1 git@gitcode.com:GitHub_Trending/la/starter.git \
+        if git clone --depth=1 git@gitcode.com:gh_mirrors/sta/starter.git \
                 "${HOME}/.config/nvim" \
             || git clone --depth=1 https://github.com/LazyVim/starter.git \
                 "${HOME}/.config/nvim"; then
             rm -rf "${HOME}/.config/nvim/.git"
 
-            # Disable plugins that require the tree-sitter CLI binary.
-            # nvim-treesitter itself only needs gcc (for :TSInstall); the CLI
-            # is only used by playground and :TSInstallFromGrammar, which we
-            # don't need in this environment.
+            # ── Patch 1: lazy.nvim bootstrap URL ──────────────────────────
+            # The starter's init.lua clones folke/lazy.nvim from GitHub.
+            # Redirect it to the gitcode GitHub_Trending mirror instead.
+            # GitHub_Trending pattern: GitHub_Trending/<repo[0:2]>/<repo>
+            #   folke/lazy.nvim → GitHub_Trending/la/lazy.nvim
+            sed -i \
+                's|https://github.com/folke/lazy.nvim.git|git@gitcode.com:GitHub_Trending/la/lazy.nvim.git|g' \
+                "${HOME}/.config/nvim/init.lua" \
+                || warn "Could not patch init.lua bootstrap URL"
+
+            # ── Patch 2: lazy.nvim plugin sync URL format ─────────────────
+            # Overwrite lua/config/lazy.lua to add git.url_format so every
+            # plugin lazy downloads uses the gitcode GitHub_Trending mirror.
+            # url_format receives "org/repo"; we extract just the repo name
+            # and compute the two-char prefix (lazy.nvim stable supports
+            # both string and function for this option).
+            cat > "${HOME}/.config/nvim/lua/config/lazy.lua" << 'LUA'
+require("lazy").setup({
+  spec = {
+    { "LazyVim/LazyVim", import = "lazyvim.plugins" },
+    { import = "plugins" },
+  },
+  defaults = { lazy = false, version = false },
+  install = { colorscheme = { "tokyonight", "habamax" } },
+  checker = { enabled = true },
+  git = {
+    -- Use gitcode.com GitHub_Trending mirrors for all plugins.
+    -- Pattern: GitHub_Trending/<first-2-chars-of-repo-lowercase>/<repo>
+    -- Examples:
+    --   folke/lazy.nvim    → GitHub_Trending/la/lazy.nvim
+    --   LazyVim/LazyVim   → GitHub_Trending/la/LazyVim
+    --   nvim-lua/plenary.nvim → GitHub_Trending/pl/plenary.nvim
+    url_format = function(source)
+      local repo = source:match("([^/]+)$") or source
+      local prefix = repo:sub(1, 2):lower()
+      return ("git@gitcode.com:GitHub_Trending/%s/%s.git"):format(prefix, repo)
+    end,
+  },
+})
+LUA
+
+            # ── Disable plugins that require the tree-sitter CLI binary ───
             mkdir -p "${HOME}/.config/nvim/lua/plugins"
             cat > "${HOME}/.config/nvim/lua/plugins/no-treesitter-cli.lua" << 'LUA'
 -- Disable nvim-treesitter-playground (requires the tree-sitter CLI binary).
