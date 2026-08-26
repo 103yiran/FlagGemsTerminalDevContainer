@@ -237,10 +237,18 @@ _build_dev() {
         # Execute every layer from the Dockerfile in order
         docker exec "$build_ctr" bash -c "
 set -e
-# Layer 1: uv cache dir, /flagos ownership, uv symlink
+# Layer 1: uv cache dir, /flagos permissions, uv symlink
 mkdir -p /usr/local/share/uv /root/.local/bin /flagos
 chown -R '${_uid}:${_gid}' /usr/local/share/uv
-chown -R '${_uid}:${_gid}' /flagos
+# Make /flagos world-readable/executable so all users can use the venv.
+# /flagos/bin/python is a symlink into /root/.local/share/uv/python/…;
+# chmod -R on /flagos only fixes the symlink itself, not the target.
+# We must also open up every ancestor directory along the target path.
+chmod -R a+rX /flagos
+chmod a+x /root /root/.local /root/.local/share
+if [ -d /root/.local/share/uv/python ]; then
+    chmod -R a+rX /root/.local/share/uv/python
+fi
 if [ -f /root/.local/bin/uv ]; then
     ln -sf /root/.local/bin/uv /usr/local/bin/uv
 fi
@@ -347,12 +355,23 @@ npm install -g @anthropic-ai/claude-code \
         fi
 
         # Commit the container as the dev image with metadata
-        docker commit \
-            --change "ENV UV_CACHE_DIR=/usr/local/share/uv" \
-            --change "USER ${_username}" \
-            --change "WORKDIR /workspace" \
-            "$build_ctr" \
-            "$DEV_IMAGE"
+        # For nvidia, prepend /flagos/bin to whatever PATH the base image already
+        # has, so vllm and the /flagos venv python are reachable for all users.
+        local _path_change=""
+        if [[ "$PLATFORM" == "nvidia" ]]; then
+            local _base_path
+            _base_path="$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \
+                "$build_ctr" | grep '^PATH=' | cut -d= -f2-)"
+            _base_path="${_base_path:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
+            _path_change="ENV PATH=/flagos/bin:${_base_path}"
+        fi
+        local _commit_args=(
+            --change "ENV UV_CACHE_DIR=/usr/local/share/uv"
+            --change "USER ${_username}"
+            --change "WORKDIR /workspace"
+        )
+        [[ -n "$_path_change" ]] && _commit_args+=(--change "$_path_change")
+        docker commit "${_commit_args[@]}" "$build_ctr" "$DEV_IMAGE"
 
         docker rm -f "$build_ctr"
         trap - EXIT  # build succeeded, cancel the cleanup trap
