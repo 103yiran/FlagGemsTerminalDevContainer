@@ -2,7 +2,7 @@
 # nvidia/start.sh — launch the FlagGems NVIDIA development container.
 #
 # Step 1: build (or skip) flaggems-nvidia:dev from root Dockerfile
-#         using harbor.baai.ac.cn/flagos-runtime/flagos-runtime-nvidia-cuda13.3 as base
+#         using harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3 as base
 # Step 2: start container with -itd (detached), then exec into it
 #
 # SSH key forwarding (applied at container creation, pick one):

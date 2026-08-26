@@ -20,8 +20,16 @@ set -euo pipefail
 # ── Defaults ─────────────────────────────────────────────────────
 DEV_IMAGE="${DEV_IMAGE:-flaggems-${PLATFORM}:dev}"
 CONTAINER_NAME="${CONTAINER_NAME:-flaggems-${PLATFORM}-dev-$(id -un)}"
-BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2}"
-BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-runtime}"
+
+# nvidia uses a dedicated vllm base image under a different registry path
+if [[ "${PLATFORM}" == "nvidia" ]]; then
+    BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2-0.2.1_g825c1cd}"
+    BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-app}"
+    BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3}"
+else
+    BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2}"
+    BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-runtime}"
+fi
 
 # ── Runtime state ─────────────────────────────────────────────────
 FORCE_RECREATE=false
@@ -360,7 +368,7 @@ _print_summary() {
     local base_image
     if [[ "$PLATFORM" == "nvidia" ]]; then
         local toolkit="${TOOLKIT_VERSION:-cuda13.3}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-nvidia-${toolkit}:${BASE_IMAGE_TAG}"
+        base_image="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/vllm0.20.2-nvidia-${toolkit}}:${BASE_IMAGE_TAG}"
     elif [[ "$PLATFORM" == "hygon" ]]; then
         local toolkit="${TOOLKIT_VERSION:-dtk26.04}"
         base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-hygon-${toolkit}:${BASE_IMAGE_TAG}"
