@@ -414,6 +414,15 @@ source "${REPO_ROOT}/common/lib.sh"
 eval "_orig_run_container() $(declare -f _run_container | tail -n +2)"
 _run_container() {
     _ascend_patch_mounts
+
+    # Record whether the container already existed and was running before we call
+    # _orig_run_container.  We only want to restart (for group-change propagation)
+    # when the container was just freshly created, not when a peer is already
+    # connected — a docker restart would kill every active `docker exec` session
+    # in other terminal windows.
+    local _was_running=false
+    container_running && _was_running=true
+
     _orig_run_container "$@"
 
     # Setup device permissions after container is created
@@ -437,22 +446,26 @@ _run_container() {
         ' 2>&1 | grep -v "DrvMngGetConsoleLogLevel" || true
         print_success "Ascend 环境已初始化"
 
-        # Restart the container so usermod group changes take effect.
-        # docker exec spawns a new process whose supplementary groups are loaded
-        # from /etc/group at exec time, so a restart is not strictly required —
-        # but it ensures /proc/1 (the sleep entrypoint) also sees the updated
-        # groups, which some DCMI/HCCL probes check.
-        print_step "重启容器以使组成员变更生效..."
-        docker restart "${CONTAINER_NAME}" > /dev/null
-        # Wait until the container is running again before handing control back
-        local _wait=0
-        until container_running || [[ $_wait -ge 15 ]]; do
-            sleep 1
-            _wait=$(( _wait + 1 ))
-        done
-        container_running \
-            && print_success "容器已重启，NPU 设备访问已就绪" \
-            || { print_error "容器重启超时，请手动检查: docker ps -a | grep ${CONTAINER_NAME}"; return 1; }
+        # Only restart the container to propagate usermod group changes when it
+        # was just freshly created.  If it was already running before this
+        # invocation, other terminal windows may have active `docker exec`
+        # sessions — restarting would kill them and is unnecessary (the groups
+        # were already set up in a previous run).
+        if ! $_was_running; then
+            print_step "重启容器以使组成员变更生效..."
+            docker restart "${CONTAINER_NAME}" > /dev/null
+            # Wait until the container is running again before handing control back
+            local _wait=0
+            until container_running || [[ $_wait -ge 15 ]]; do
+                sleep 1
+                _wait=$(( _wait + 1 ))
+            done
+            container_running \
+                && print_success "容器已重启，NPU 设备访问已就绪" \
+                || { print_error "容器重启超时，请手动检查: docker ps -a | grep ${CONTAINER_NAME}"; return 1; }
+        else
+            print_info "容器已在运行，跳过重启（避免断开其他已连接的窗口）"
+        fi
     fi
 }
 
