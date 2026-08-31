@@ -146,21 +146,24 @@ vim.opt.rtp:prepend(lazypath)
 -- Rewrite GitHub URLs to gitcode GitHub_Trending mirrors.
 -- lazy.nvim resolves short "owner/repo" specs to https://github.com/owner/repo
 -- before calling url_rewrite, so we only need to handle that prefix.
--- gitcode path layout: GitHub_Trending/<org-2char-prefix>/<org>/<repo>
+-- gitcode path layout: GitHub_Trending/<repo-2char-prefix>/<repo>
 -- e.g. https://github.com/folke/snacks.nvim
---   -> git@gitcode.com:GitHub_Trending/fo/folke/snacks.nvim.git
+--   -> git@gitcode.com:GitHub_Trending/sn/snacks.nvim.git
 local function gitcode_url(url)
   if not url or not url:match("^https://github%.com/") then
     return url
   end
   -- url is like https://github.com/folke/snacks.nvim
-  local org, repo = url:match("github%.com/([^/]+)/([^/]+)")
-  if not org or not repo then return url end
+  local _, repo = url:match("github%.com/([^/]+)/([^/]+)")
+  if not repo then return url end
   -- Remove trailing .git if lazy appended it
   repo = repo:gsub("%.git$", "")
-  -- gitcode GitHub_Trending uses first-two-chars of the ORG name as sub-org
-  local prefix = org:sub(1, 2):lower()
-  return ("git@gitcode.com:GitHub_Trending/%s/%s/%s.git"):format(prefix, org, repo)
+  -- gitcode GitHub_Trending layout: GitHub_Trending/<repo-2char-prefix>/<repo>
+  -- e.g. https://github.com/folke/snacks.nvim
+  --   -> git@gitcode.com:GitHub_Trending/sn/snacks.nvim.git
+  -- (no org layer — verified against the lazy.nvim bootstrap URL)
+  local prefix = repo:sub(1, 2):lower()
+  return ("git@gitcode.com:GitHub_Trending/%s/%s.git"):format(prefix, repo)
 end
 
 require("lazy").setup({
