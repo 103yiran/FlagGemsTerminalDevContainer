@@ -252,7 +252,10 @@ Defaults !secure_path
 
 # Preserve user environment variables across sudo
 Defaults env_keep += "PATH VIRTUAL_ENV PYTHONPATH"
+Defaults env_keep += "LD_LIBRARY_PATH LD_PRELOAD"
 Defaults env_keep += "ASCEND_HOME_PATH ASCEND_TOOLKIT_HOME ASCEND_OPP_PATH ASCEND_AICPU_PATH"
+Defaults env_keep += "ATB_HOME_PATH ATB_MATMUL_SHUFFLE_K_ENABLE ATB_COMPARE_TILING_EVERY_KERNEL"
+Defaults env_keep += "ATB_OPSRUNNER_KERNEL_CACHE_GLOABL_COUNT ATB_OPSRUNNER_KERNEL_CACHE_LOCAL_COUNT"
 Defaults env_keep += "TOOLCHAIN_HOME CMAKE_PREFIX_PATH"
 Defaults env_keep += "LANG LC_ALL LC_CTYPE LANGUAGE"
 SUDOERS
@@ -265,21 +268,90 @@ visudo -c -f /etc/sudoers.d/ascend-env
 # /etc/profile.d/vendor.sh (unlike bash), so ASCEND_HOME_PATH would be absent
 # and torch_npu._C._get_cann_version would fall back to a binary file and
 # raise UnicodeDecodeError.
+#
+# We discover the most up-to-date set_env.sh (user-installed CANN takes
+# priority over vendor.sh baked into the image) so updating CANN inside the
+# container is immediately reflected without restarting.
 grep -q "^LANG="   /etc/environment 2>/dev/null || echo "LANG=C.UTF-8"   >> /etc/environment
 grep -q "^LC_ALL=" /etc/environment 2>/dev/null || echo "LC_ALL=C.UTF-8" >> /etc/environment
 
-if ! grep -q "^LD_LIBRARY_PATH=" /etc/environment 2>/dev/null; then
-    ld_path=$(grep "^export LD_LIBRARY_PATH=" /etc/profile.d/vendor.sh 2>/dev/null \
-              | sed "s/export LD_LIBRARY_PATH=//;s/'//g" | head -1)
-    [[ -n "$ld_path" ]] && echo "LD_LIBRARY_PATH=\"${ld_path}\"" >> /etc/environment
+# Discover the most recent CANN set_env.sh.
+# Search user homes first, then the system-wide toolkit, then vendor.sh.
+_best_set_env() {
+    # User installs under /home/*/Ascend
+    local f
+    f=$(find /home -maxdepth 6 -name "set_env.sh" -path "*/Ascend/*" 2>/dev/null \
+        | head -1)
+    [[ -f "$f" ]] && { echo "$f"; return; }
+
+    [[ -f /usr/local/Ascend/ascend-toolkit/set_env.sh ]] && \
+        { echo /usr/local/Ascend/ascend-toolkit/set_env.sh; return; }
+
+    f=$(find /usr/local/Ascend -maxdepth 4 -name "set_env.sh" 2>/dev/null \
+        | grep -v nnal | head -1)
+    [[ -f "$f" ]] && { echo "$f"; return; }
+
+    [[ -f /etc/profile.d/vendor.sh ]] && echo /etc/profile.d/vendor.sh
+}
+
+SET_ENV=$(_best_set_env)
+
+if [[ -n "$SET_ENV" ]]; then
+    echo "[INFO] /etc/environment: sourcing CANN vars from $SET_ENV"
+    # Capture exports from the set_env.sh / vendor.sh in a subshell.
+    ENV_EXPORTS=$(bash -c "source '$SET_ENV' 2>/dev/null; export -p" 2>/dev/null || true)
+
+    while IFS= read -r line; do
+        line="${line#declare -x }"
+        varname="${line%%=*}"
+        # Strip surrounding quotes from the value for /etc/environment format
+        value="${line#*=}"
+        value="${value%\'}"
+        value="${value#\'}"
+        case "$varname" in
+            PYTHONPATH) continue ;;   # never write PYTHONPATH — breaks /flagos venv
+            ASCEND_*|ATB_*|LD_LIBRARY_PATH|CMAKE_PREFIX_PATH|TOOLCHAIN_HOME)
+                # Update existing key or append
+                if grep -q "^${varname}=" /etc/environment 2>/dev/null; then
+                    sed -i "s|^${varname}=.*|${varname}=${value}|" /etc/environment
+                else
+                    echo "${varname}=${value}" >> /etc/environment
+                fi
+                ;;
+        esac
+    done < <(echo "$ENV_EXPORTS")
+else
+    echo "[WARN] No CANN set_env.sh found; /etc/environment not updated" >&2
 fi
 
-grep "^export ASCEND" /etc/profile.d/vendor.sh 2>/dev/null \
-    | sed "s/^export //;s/'//g" \
-    | while IFS= read -r line; do
-        key="${line%%=*}"
-        grep -q "^${key}=" /etc/environment 2>/dev/null || echo "$line" >> /etc/environment
-    done
+# ── sudo-python wrapper ───────────────────────────────────────────────────────
+# `sudo python3` resolves python3 via sudo's PATH which, even with !secure_path,
+# starts with /usr/bin.  When the user has a .venv active, they expect
+# `sudo python3` to use the venv interpreter.
+#
+# We install a thin wrapper at /usr/local/bin/sudo-python that preserves the
+# active VIRTUAL_ENV / PATH and runs the correct interpreter under sudo.
+# Usage inside the container:  sudo-python script.py
+#   or: alias sudo='sudo-python' (the user can add this to their ~/.bashrc)
+cat > /usr/local/bin/sudo-python << 'PYWRAP'
+#!/bin/bash
+# sudo-python: run python3 under sudo while preserving the active venv/PATH.
+# Forwards all arguments unchanged.
+PYTHON="${VIRTUAL_ENV:+${VIRTUAL_ENV}/bin/python3}"
+PYTHON="${PYTHON:-$(command -v python3)}"
+exec sudo \
+    VIRTUAL_ENV="${VIRTUAL_ENV:-}" \
+    PATH="${PATH}" \
+    LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}" \
+    ASCEND_HOME_PATH="${ASCEND_HOME_PATH:-}" \
+    ASCEND_TOOLKIT_HOME="${ASCEND_TOOLKIT_HOME:-}" \
+    ASCEND_OPP_PATH="${ASCEND_OPP_PATH:-}" \
+    ASCEND_AICPU_PATH="${ASCEND_AICPU_PATH:-}" \
+    "$PYTHON" "$@"
+PYWRAP
+chmod 755 /usr/local/bin/sudo-python
+
+echo "[OK] /etc/sudoers.d/ascend-env, /etc/environment, and sudo-python wrapper installed"
 SCRIPT_EOF
 
     docker cp "${_sudo_setup}" "${CONTAINER_NAME}:/tmp/ascend_sudo_setup.sh"
@@ -347,36 +419,80 @@ _ascend_inject_shell_env() {
 #!/bin/bash
 set -e
 
-VENDOR="/etc/profile.d/vendor.sh"
 MARKER="# >>> ascend-env (managed by start.sh) >>>"
 MARKER_END="# <<< ascend-env <<<"
 
-if [[ ! -f "$VENDOR" ]]; then
-    echo "[WARN] $VENDOR not found, skipping shell env injection" >&2
+# ── Discover the best available CANN set_env.sh ───────────────────────────────
+# Priority (highest first):
+#   1. User-installed CANN under their home directory (updated after container start)
+#   2. System-wide ascend-toolkit set_env.sh
+#   3. /etc/profile.d/vendor.sh (baked into the base image, may be stale)
+#
+# We source the discovered set_env.sh into a subshell, capture the exports,
+# then write only the vars we care about (skip PYTHONPATH to protect /flagos venv).
+_discover_set_env() {
+    # 1. User home: look for the newest set_env.sh (by mtime) under ~/Ascend
+    local user_home="${HOME}"
+    local user_set_env
+    user_set_env=$(find "${user_home}/Ascend" -maxdepth 5 -name "set_env.sh" \
+                       2>/dev/null | head -1)
+    [[ -f "$user_set_env" ]] && { echo "$user_set_env"; return; }
+
+    # 2. System toolkit symlink
+    [[ -f /usr/local/Ascend/ascend-toolkit/set_env.sh ]] && \
+        { echo /usr/local/Ascend/ascend-toolkit/set_env.sh; return; }
+
+    # 3. Any system-level set_env.sh (first match, version-agnostic)
+    local sys_set_env
+    sys_set_env=$(find /usr/local/Ascend -maxdepth 4 -name "set_env.sh" \
+                      2>/dev/null | grep -v nnal | head -1)
+    [[ -f "$sys_set_env" ]] && { echo "$sys_set_env"; return; }
+
+    # 4. Fallback: vendor.sh baked into the image
+    [[ -f /etc/profile.d/vendor.sh ]] && echo /etc/profile.d/vendor.sh
+}
+
+SET_ENV=$(_discover_set_env)
+if [[ -z "$SET_ENV" ]]; then
+    echo "[WARN] No CANN set_env.sh found, skipping shell env injection" >&2
     exit 0
 fi
+echo "[INFO] Using CANN env source: $SET_ENV"
 
-# Build the block to inject: export every ASCEND_* var from vendor.sh,
-# plus PATH additions, but skip PYTHONPATH (it shadows /flagos venv packages).
+# Source set_env.sh in a clean subshell and capture the resulting exports.
+# We cannot `source` it in the current shell because it may clobber PYTHONPATH.
+ENV_EXPORTS=$(bash -c "source '$SET_ENV' 2>/dev/null; export -p" 2>/dev/null || true)
+
+# Build the injection block from the captured exports.
+# Rules:
+#   - Skip PYTHONPATH (shadows /flagos venv, breaks `import triton` etc.)
+#   - Include ASCEND_*, ATB_*, LD_LIBRARY_PATH, PATH, CMAKE_PREFIX_PATH, TOOLCHAIN_HOME
 ENV_BLOCK="$MARKER"$'\n'
+
+# Also include any user-specific LD_LIBRARY_PATH additions at the front.
+# This covers e.g. /home/sjzhao/Ascend/cann/aarch64-linux/lib64 which may
+# only be set by the user's set_env.sh and not by vendor.sh.
 while IFS= read -r line; do
-    # Skip PYTHONPATH — it prepends CANN's site-packages and breaks /flagos venv
-    [[ "$line" =~ ^export\ PYTHONPATH= ]] && continue
-    # Include ASCEND_*, ATB_*, PATH, LD_LIBRARY_PATH, CMAKE_PREFIX_PATH, TOOLCHAIN_HOME
-    if [[ "$line" =~ ^export\ (ASCEND_|ATB_|PATH=|LD_LIBRARY_PATH=|CMAKE_PREFIX_PATH=|TOOLCHAIN_HOME=) ]]; then
-        ENV_BLOCK+="$line"$'\n'
-    fi
-done < <(grep "^export " "$VENDOR")
-# Ensure /flagos/bin leads PATH so `python3` resolves to the FlagOS venv
-# interpreter rather than the system one (/usr/bin/python3).
+    # `export -p` emits lines like: declare -x VAR="value"
+    # Normalise to: export VAR=value
+    line="${line#declare -x }"
+    varname="${line%%=*}"
+    [[ "$varname" == "PYTHONPATH" ]] && continue
+    case "$varname" in
+        ASCEND_*|ATB_*|LD_LIBRARY_PATH|PATH|CMAKE_PREFIX_PATH|TOOLCHAIN_HOME)
+            ENV_BLOCK+="export $line"$'\n'
+            ;;
+    esac
+done < <(echo "$ENV_EXPORTS")
+
+# Ensure /flagos/bin leads PATH so the FlagOS venv python3 wins over system python3.
 ENV_BLOCK+='export PATH=/flagos/bin:$PATH'$'\n'
 ENV_BLOCK+="$MARKER_END"
 
-# Write the block into ~/.zshrc and ~/.bashrc (idempotent: replace if exists)
+# Write (or replace) the block in ~/.zshrc and ~/.bashrc (idempotent).
 for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
     [[ -f "$rc" ]] || touch "$rc"
     if grep -qF "$MARKER" "$rc" 2>/dev/null; then
-        # Replace existing block
         python3 - "$rc" "$ENV_BLOCK" << 'PYEOF'
 import sys, re
 rc_path, block = sys.argv[1], sys.argv[2]
@@ -390,7 +506,7 @@ PYEOF
     fi
 done
 
-echo "[OK] Ascend env injected into ~/.zshrc and ~/.bashrc"
+echo "[OK] Ascend env injected from $SET_ENV into ~/.zshrc and ~/.bashrc"
 SCRIPT_EOF
 
     docker cp "${_inject_script}" "${CONTAINER_NAME}:/tmp/ascend_inject_env.sh"
@@ -398,6 +514,15 @@ SCRIPT_EOF
     docker exec -u root "${CONTAINER_NAME}" rm -f /tmp/ascend_inject_env.sh
     rm -f "${_inject_script}"
     print_success "Ascend 环境变量已注入用户 shell rc（PYTHONPATH 已排除以保护 /flagos venv）"
+
+    # Install ascend-refresh-env helper so users can re-run env refresh inside the
+    # container after updating CANN without restarting (e.g. sudo ascend-refresh-env).
+    if [[ -f "${SCRIPT_DIR}/ascend-refresh-env.sh" ]]; then
+        docker cp "${SCRIPT_DIR}/ascend-refresh-env.sh" \
+            "${CONTAINER_NAME}:/usr/local/bin/ascend-refresh-env"
+        docker exec -u root "${CONTAINER_NAME}" chmod 755 /usr/local/bin/ascend-refresh-env
+        print_info "已安装 ascend-refresh-env 到容器 /usr/local/bin（更新 CANN 后运行 sudo ascend-refresh-env 刷新环境）"
+    fi
 }
 
 # ── Load shared logic ─────────────────────────────────────────────
