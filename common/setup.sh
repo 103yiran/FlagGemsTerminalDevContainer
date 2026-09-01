@@ -129,7 +129,7 @@ if [[ ! -d "${HOME}/.config/nvim" ]]; then
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
-  local lazyrepo = "git@gitcode.com:GitHub_Trending/la/lazy.nvim.git"
+  local lazyrepo = "git@gitcode.com:gh_mirrors/la/lazy.nvim.git"
   local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
   if vim.v.shell_error ~= 0 then
     vim.api.nvim_echo({
@@ -143,28 +143,48 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Rewrite GitHub URLs to gitcode GitHub_Trending mirrors.
--- lazy.nvim resolves short "owner/repo" specs to https://github.com/owner/repo
--- before calling url_rewrite, so we only need to handle that prefix.
--- gitcode path layout: GitHub_Trending/<repo-2char-prefix>/<repo>
--- e.g. https://github.com/folke/snacks.nvim
---   -> git@gitcode.com:GitHub_Trending/sn/snacks.nvim.git
-local function gitcode_url(url)
-  if not url or not url:match("^https://github%.com/") then
-    return url
-  end
-  -- url is like https://github.com/folke/snacks.nvim
-  local _, repo = url:match("github%.com/([^/]+)/([^/]+)")
-  if not repo then return url end
-  -- Remove trailing .git if lazy appended it
-  repo = repo:gsub("%.git$", "")
-  -- gitcode GitHub_Trending layout: GitHub_Trending/<repo-2char-prefix>/<repo>
-  -- e.g. https://github.com/folke/snacks.nvim
-  --   -> git@gitcode.com:GitHub_Trending/sn/snacks.nvim.git
-  -- (no org layer — verified against the lazy.nvim bootstrap URL)
-  local prefix = repo:sub(1, 2):lower()
-  return ("git@gitcode.com:GitHub_Trending/%s/%s.git"):format(prefix, repo)
-end
+-- Override lazy.nvim's git.url_format to redirect plugin clones to gitcode.
+-- lazy.nvim calls url_format:format("owner/repo") to build the clone URL.
+-- By setting url_format to a table whose :format() method we intercept every
+-- clone and redirect it to gitcode gh_mirrors where available.
+--
+-- gitcode gh_mirrors layout: git@gitcode.com:gh_mirrors/<repo[0:2]>/<repo>.git
+-- e.g. "folke/snacks.nvim" -> git@gitcode.com:gh_mirrors/sn/snacks.nvim.git
+--
+-- Owners whose repos are largely absent from gh_mirrors (e.g. echasnovski/mini.*)
+-- fall back to GitHub SSH directly — connectivity to github.com via SSH is
+-- available in this environment.
+--
+-- This works because vim.tbl_deep_extend preserves metatables, so lazy.nvim's
+-- Config.options.git.url_format ends up being this table, and the subsequent
+-- url_format:format(plugin_spec) call hits our custom method.
+
+-- Owners that should go directly to GitHub SSH (not in gitcode gh_mirrors).
+local github_direct_owners = {
+  echasnovski = true,
+}
+
+local gitcode_url_format = setmetatable({}, {
+  __index = {
+    format = function(_, s)
+      -- s is "owner/repo" or "owner/repo.git"
+      local owner, repo = s:match("([^/]+)/([^/]+)")
+      if not repo then
+        -- Fallback: no slash found, use s as repo name
+        repo = s:gsub("%.git$", "")
+        local prefix = repo:sub(1, 2):lower()
+        return ("git@gitcode.com:gh_mirrors/%s/%s.git"):format(prefix, repo)
+      end
+      repo = repo:gsub("%.git$", "")
+      -- Route known-missing owners directly to GitHub SSH
+      if github_direct_owners[owner] then
+        return ("git@github.com:%s/%s.git"):format(owner, repo)
+      end
+      local prefix = repo:sub(1, 2):lower()
+      return ("git@gitcode.com:gh_mirrors/%s/%s.git"):format(prefix, repo)
+    end,
+  },
+})
 
 require("lazy").setup({
   spec = {
@@ -176,8 +196,16 @@ require("lazy").setup({
     version = false,
   },
   git = {
-    -- Use gitcode mirrors; fall back to original URL on clone failure
-    url_rewrite = gitcode_url,
+    -- Redirect all plugin clones to gitcode gh_mirrors (covers virtually all
+    -- GitHub repos). url_format:format("owner/repo") is lazy.nvim's internal
+    -- hook for building clone URLs from short "owner/repo" specs.
+    url_format = gitcode_url_format,
+    -- Disable partial clone (--filter=blob:none).
+    -- Partial clone writes the original GitHub URL as the promisor remote,
+    -- causing subsequent blob fetches to hit GitHub directly (blocked).
+    -- With filter=false all objects are transferred upfront at clone time.
+    filter = false,
+    timeout = 120,
   },
   install = { colorscheme = { "tokyonight", "habamax" } },
   checker = { enabled = true },
@@ -198,15 +226,52 @@ LUA
             # ── Disable plugins that require the tree-sitter CLI binary ───
             mkdir -p "${HOME}/.config/nvim/lua/plugins"
             cat > "${HOME}/.config/nvim/lua/plugins/no-treesitter-cli.lua" << 'LUA'
--- Disable nvim-treesitter-playground (requires the tree-sitter CLI binary).
+-- Disable tree-sitter features that require the CLI binary.
 return {
+  -- Disable nvim-treesitter-playground (requires tree-sitter CLI)
   { "nvim-treesitter/playground", enabled = false },
+  -- Keep nvim-treesitter itself but disable auto-install and build
+  {
+    "nvim-treesitter/nvim-treesitter",
+    opts = {
+      auto_install = false,  -- Don't auto-install parsers (needs tree-sitter CLI)
+    },
+    build = nil,  -- Disable the :TSUpdate command (needs tree-sitter CLI)
+  },
 }
 LUA
 
             info "Syncing LazyVim plugins (this may take a while)..."
+
+            # Pre-check: ensure .local/share/nvim has write permissions and space
+            mkdir -p "${HOME}/.local/share/nvim/lazy"
+            touch "${HOME}/.local/share/nvim/.writetest" 2>/dev/null \
+                && rm -f "${HOME}/.local/share/nvim/.writetest" \
+                || { warn "~/.local/share/nvim is not writable — plugin sync will fail"; }
+
             timeout 300 nvim --headless "+Lazy! sync" +qa \
                 || warn "Lazy sync exited non-zero — some plugins may be missing"
+
+            # Post-sync: recover any plugin whose .git dir exists but working tree
+            # is empty.  This happens when git clone's partial-clone (--filter=blob:none)
+            # succeeds in transferring objects but fails during checkout — leaving only
+            # the .git directory.  `git checkout -f HEAD` re-writes the working tree
+            # from the already-present object database without re-fetching anything.
+            local _lazy_dir="${HOME}/.local/share/nvim/lazy"
+            for _plugin_dir in "${_lazy_dir}"/*/; do
+                [[ -d "${_plugin_dir}.git" ]] || continue
+                # Count non-.git files; if zero, checkout is incomplete
+                local _nfiles
+                _nfiles=$(find "${_plugin_dir}" -mindepth 1 -not -path "*/.git/*" | wc -l)
+                if [[ "${_nfiles}" -eq 0 ]]; then
+                    local _pname
+                    _pname=$(basename "${_plugin_dir}")
+                    warn "${_pname}: checkout incomplete — recovering with git checkout -f HEAD"
+                    git -C "${_plugin_dir}" checkout -f HEAD 2>&1 \
+                        && info "${_pname}: recovered ($(find "${_plugin_dir}" -not -path "*/.git/*" -mindepth 1 | wc -l) files)" \
+                        || warn "${_pname}: recovery failed"
+                fi
+            done
         else
             warn "LazyVim clone failed — skipping nvim setup"
         fi
