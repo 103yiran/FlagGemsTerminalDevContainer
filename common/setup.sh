@@ -160,8 +160,11 @@ vim.opt.rtp:prepend(lazypath)
 -- url_format:format(plugin_spec) call hits our custom method.
 
 -- Owners that should go directly to GitHub SSH (not in gitcode gh_mirrors).
+-- echasnovski: splits mini.nvim into per-module repos; most absent from gh_mirrors.
+-- nvim-mini: LazyVim uses this GitHub org alias for the same echasnovski mini.* repos.
 local github_direct_owners = {
   echasnovski = true,
+  ["nvim-mini"] = true,
 }
 
 local gitcode_url_format = setmetatable({}, {
