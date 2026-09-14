@@ -34,6 +34,7 @@ platform_hardware_args() {
 --device=/dev/mkfd
 --device=/dev/dri
 --group-add video
+--group-add 39
 --privileged
 EOF
 }

@@ -240,11 +240,10 @@ set -e
 # Layer 1: uv cache dir, /flagos permissions, uv symlink
 mkdir -p /usr/local/share/uv /root/.local/bin /flagos
 chown -R '${_uid}:${_gid}' /usr/local/share/uv
-# Make /flagos world-readable/executable so all users can use the venv.
+# Transfer /flagos ownership to the non-root user so they can install packages.
 # /flagos/bin/python is a symlink into /root/.local/share/uv/python/…;
-# chmod -R on /flagos only fixes the symlink itself, not the target.
 # We must also open up every ancestor directory along the target path.
-chmod -R a+rX /flagos
+chown -R '${_uid}:${_gid}' /flagos
 chmod a+x /root /root/.local /root/.local/share
 if [ -d /root/.local/share/uv/python ]; then
     chmod -R a+rX /root/.local/share/uv/python
