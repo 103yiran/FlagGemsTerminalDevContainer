@@ -1,5 +1,5 @@
 # ============================================================
-# FlagGems — terminal development image (NVIDIA + Hygon + Cambricon + Ascend)
+# FlagGems — terminal development image (NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar)
 #
 # Layers development tools on top of FlagOS base images from Harbor.
 # Select the target platform via PLATFORM, TOOLKIT, and BASE_IMAGE_TAG build-args:
@@ -8,13 +8,15 @@
 #   PLATFORM=hygon                 — TOOLKIT default: dtk26.04
 #   PLATFORM=cambricon             — TOOLKIT default: neuware4.7.2
 #   PLATFORM=ascend                — TOOLKIT default: cann9.0.0
+#   PLATFORM=metax                 — TOOLKIT default: maca3.8.1.3
+#   PLATFORM=iluvatar              — TOOLKIT default: corex4.5.0
 #   TOOLKIT                        — override toolkit version (replaces per-platform default)
 #   BASE_IMAGE_TAG=2.1.2           — FlagOS base image version
 #
 # Resulting base image: flagos-base-<PLATFORM>-<TOOLKIT>:<BASE_IMAGE_TAG>
 #
-# Usage: built and launched via nvidia/start.sh, hygon/start.sh,
-#        cambricon/start.sh, or ascend/start.sh
+# Usage: built and launched via nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
+#        ascend/start.sh, metax/start.sh, or iluvatar/start.sh
 # ============================================================
 
 ARG PLATFORM=nvidia

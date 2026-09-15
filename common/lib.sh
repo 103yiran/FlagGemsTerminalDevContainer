@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# common/lib.sh — shared logic for nvidia/start.sh, hygon/start.sh, cambricon/start.sh, metax/start.sh
+# common/lib.sh — shared logic for nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
+#                 ascend/start.sh, metax/start.sh, iluvatar/start.sh
 #
 # Callers must set before sourcing:
-#   PLATFORM          nvidia | hygon | cambricon | metax
+#   PLATFORM          nvidia | hygon | cambricon | metax | ascend | iluvatar
 #
 # Callers may override defaults:
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
@@ -399,6 +400,9 @@ _print_summary() {
     elif [[ "$PLATFORM" == "metax" ]]; then
         local toolkit="${TOOLKIT_VERSION:-maca3.8.1.3}"
         base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-metax-${toolkit}:${BASE_IMAGE_TAG}"
+    elif [[ "$PLATFORM" == "iluvatar" ]]; then
+        local toolkit="${TOOLKIT_VERSION:-corex4.5.0}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-iluvatar-${toolkit}:${BASE_IMAGE_TAG}"
     else
         base_image="未知平台"
     fi
