@@ -28,8 +28,11 @@ PLATFORM="iluvatar"
 TOOLKIT_VERSION="${TOOLKIT_VERSION:-corex4.5.0}"
 
 # ── Platform hardware flags ───────────────────────────────────────
-# Expose all 16 Iluvatar devices (/dev/iluvatar0 .. /dev/iluvatar15).
+# Expose all 16 Iluvatar devices (/dev/iluvatar0 .. /dev/iluvatar15)
+# plus the corex control device (/dev/itrctl), which the driver needs
+# to initialize — without it cudaGetDeviceCount() fails with error 1001.
 platform_hardware_args() {
+    echo "--device=/dev/itrctl"
     for i in $(seq 0 15); do
         echo "--device=/dev/iluvatar${i}"
     done
