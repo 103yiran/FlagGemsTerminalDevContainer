@@ -276,20 +276,30 @@ if [ \"\$PLATFORM\" = 'nvidia' ]; then
         pre-commit==3.7.1 flake8==7.1.0 black==23.7.0 isort==5.12.0
 fi
 
-# Create platform-specific groups before user creation
+# Create platform-specific groups before user creation.
+# Entries may be 'name' or 'name:gid'; the gid form pins the GID so it
+# matches a host group that owns bind-mounted device files (e.g. render).
 EXTRA_GROUPS='${_extra_groups}'
+EXTRA_GROUP_NAMES=''
 if [ -n \"\$EXTRA_GROUPS\" ]; then
     for grp in \$EXTRA_GROUPS; do
-        if ! getent group \"\$grp\" >/dev/null 2>&1; then
-            groupadd \"\$grp\" 2>/dev/null || true
+        grp_name=\"\${grp%%:*}\"
+        grp_gid=\"\${grp#*:}\"
+        if ! getent group \"\$grp_name\" >/dev/null 2>&1; then
+            if [ \"\$grp_gid\" != \"\$grp\" ]; then
+                groupadd --gid \"\$grp_gid\" \"\$grp_name\" 2>/dev/null || groupadd \"\$grp_name\" 2>/dev/null || true
+            else
+                groupadd \"\$grp_name\" 2>/dev/null || true
+            fi
         fi
+        EXTRA_GROUP_NAMES=\"\${EXTRA_GROUP_NAMES:+\$EXTRA_GROUP_NAMES,}\$grp_name\"
     done
 fi
 
 groupadd --gid '${_gid}' '${_username}'
-if [ -n \"\$EXTRA_GROUPS\" ]; then
+if [ -n \"\$EXTRA_GROUP_NAMES\" ]; then
     # Create user with additional groups
-    useradd --uid '${_uid}' --gid '${_gid}' -G \"\$EXTRA_GROUPS\" -m -s /usr/bin/zsh '${_username}'
+    useradd --uid '${_uid}' --gid '${_gid}' -G \"\$EXTRA_GROUP_NAMES\" -m -s /usr/bin/zsh '${_username}'
 else
     useradd --uid '${_uid}' --gid '${_gid}' -m -s /usr/bin/zsh '${_username}'
 fi

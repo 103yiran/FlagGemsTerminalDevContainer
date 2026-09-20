@@ -42,6 +42,23 @@ platform_hardware_args() {
 EOF
 }
 
+# ── Platform user groups ──────────────────────────────────────────
+# The base image has no "render" group, so --group-add render fails at
+# `docker run` time unless the group exists inside the image first.
+# lib.sh's _build_dev creates any group named here before useradd.
+# The GID must match the host's "render" group (owner of /dev/dri/renderD*)
+# or the container user won't actually have device access despite being
+# nominally "in" a same-named group.
+platform_user_groups() {
+    local render_gid
+    render_gid="$(getent group render 2>/dev/null | cut -d: -f3)"
+    if [ -n "$render_gid" ]; then
+        echo "render:${render_gid}"
+    else
+        echo "render"
+    fi
+}
+
 # ── Platform extra mounts ─────────────────────────────────────────
 # mthreads requires the mthreads-gmi CLI tool from the host.
 MTHREADS_EXTRA_MOUNTS=(-v /usr/bin/mthreads-gmi:/usr/bin/mthreads-gmi:ro)
