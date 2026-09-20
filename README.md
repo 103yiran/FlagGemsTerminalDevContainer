@@ -1,6 +1,6 @@
 # FlagGemsTerminalDevContainer
 
-A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, Cambricon, Ascend, Metax, and Iluvatar hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, and a full code-quality toolchain out of the box.
+A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, Cambricon, Ascend, Metax, Iluvatar, and Moore Threads hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, and a full code-quality toolchain out of the box.
 
 [中文文档](README_cn.md)
 
@@ -8,7 +8,7 @@ A terminal development container environment for [FlagGems](https://github.com/F
 
 ```
 FlagGemsTerminalDevContainer/
-├── Dockerfile            # unified dev image (NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar via ARG PLATFORM)
+├── Dockerfile            # unified dev image (NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar + Moore Threads via ARG PLATFORM)
 ├── common/
 │   ├── lib.sh            # shared shell logic (arg parsing, build, run)
 │   └── setup.sh          # runs once inside a new container to install zsh/nvim plugins
@@ -22,8 +22,10 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # Ascend launcher — sources common/lib.sh
 ├── metax/
 │   └── start.sh          # Metax launcher — sources common/lib.sh
-└── iluvatar/
-    └── start.sh          # Iluvatar launcher — sources common/lib.sh
+├── iluvatar/
+│   └── start.sh          # Iluvatar launcher — sources common/lib.sh
+└── mthreads/
+    └── start.sh          # Moore Threads launcher — sources common/lib.sh
 ```
 
 ## Prerequisites
@@ -45,6 +47,7 @@ FlagGemsTerminalDevContainer/
 - Ascend platform: `/dev/davinci0`, `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` devices available on the host; `/usr/local/Ascend/driver`, `/usr/local/dcmi`, and `/usr/local/sbin/npu-smi` present on the host
 - Metax platform: `/dev/mxcd` and `/dev/dri` devices available on the host; user must be in the `video` group
 - Iluvatar platform: `/dev/iluvatar0` through `/dev/iluvatar15` devices available on the host and `/usr/local/corex` present on the host
+- Moore Threads platform: `/dev/mtgpu.0` through `/dev/mtgpu.7` and `/dev/dri` devices available on the host, `/usr/bin/mthreads-gmi` present on the host; user must be in the `render` and `video` groups
 
 ## Quick start
 
@@ -86,6 +89,12 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 
 ```bash
 ./iluvatar/start.sh
+```
+
+### Launch (Moore Threads)
+
+```bash
+./mthreads/start.sh
 ```
 
 On the first run the script will:
