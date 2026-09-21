@@ -249,6 +249,12 @@ chmod a+x /root /root/.local /root/.local/share
 if [ -d /root/.local/share/uv/python ]; then
     chmod -R a+rX /root/.local/share/uv/python
 fi
+if [ -x /flagos/bin/pip3 ]; then
+    /flagos/bin/pip3 install --no-cache-dir \
+        --timeout 120 --retries 5 \
+        --index-url https://mirrors.aliyun.com/pypi/simple/ \
+        pytest==8.3.5
+fi
 if [ -f /root/.local/bin/uv ]; then
     ln -sf /root/.local/bin/uv /usr/local/bin/uv
 fi
