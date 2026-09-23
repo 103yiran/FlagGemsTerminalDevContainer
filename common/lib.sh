@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # common/lib.sh — shared logic for nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
-#                 ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh
+#                 ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh,
+#                 kunlunxin/start.sh
 #
 # Callers must set before sourcing:
-#   PLATFORM          nvidia | hygon | cambricon | metax | ascend | iluvatar | mthreads
+#   PLATFORM          nvidia | hygon | cambricon | metax | ascend | iluvatar | mthreads | kunlunxin
 #
 # Callers may override defaults:
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
@@ -422,6 +423,9 @@ _print_summary() {
     elif [[ "$PLATFORM" == "mthreads" ]]; then
         local toolkit="${TOOLKIT_VERSION:-musa5.2.0}"
         base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-mthreads-${toolkit}:${BASE_IMAGE_TAG}"
+    elif [[ "$PLATFORM" == "kunlunxin" ]]; then
+        local toolkit="${TOOLKIT_VERSION:-xre5.37.1}"
+        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-kunlunxin-${toolkit}:${BASE_IMAGE_TAG}"
     else
         base_image="未知平台"
     fi

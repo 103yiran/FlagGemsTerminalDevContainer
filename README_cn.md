@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境,支持 NVIDIA、Hygon、Cambricon、Ascend、Metax、Iluvatar、摩尔线程（Moore Threads）七种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code 及完整的代码质量工具链。
+为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境,支持 NVIDIA、Hygon、Cambricon、Ascend、Metax、Iluvatar、摩尔线程（Moore Threads）、昆仑芯（Kunlunxin）八种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code 及完整的代码质量工具链。
 
 ## 目录结构
 
@@ -24,8 +24,10 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # Metax 启动脚本，source common/lib.sh
 ├── iluvatar/
 │   └── start.sh          # Iluvatar 启动脚本，source common/lib.sh
-└── mthreads/
-    └── start.sh          # 摩尔线程启动脚本，source common/lib.sh
+├── mthreads/
+│   └── start.sh          # 摩尔线程启动脚本，source common/lib.sh
+└── kunlunxin/
+    └── start.sh          # 昆仑芯启动脚本，source common/lib.sh
 ```
 
 ## 前置条件
@@ -48,6 +50,7 @@ FlagGemsTerminalDevContainer/
 - Metax 平台：宿主机已挂载 `/dev/mxcd` 和 `/dev/dri` 设备，用户需在 `video` 组中
 - Iluvatar 平台：宿主机已挂载 `/dev/iluvatar0` 至 `/dev/iluvatar15` 设备，且 `/usr/local/corex` 已就位
 - 摩尔线程（Moore Threads）平台：宿主机已挂载 `/dev/mtgpu.0` 至 `/dev/mtgpu.7` 及 `/dev/dri` 设备，`/usr/bin/mthreads-gmi` 已就位，用户需在 `render` 和 `video` 组中
+- 昆仑芯（Kunlunxin）平台：宿主机已挂载 `/dev/xpu0` 至 `/dev/xpu7` 及 `/dev/xpuctrl` 设备
 
 ## 快速开始
 
@@ -95,6 +98,12 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 
 ```bash
 ./mthreads/start.sh
+```
+
+### 启动容器（昆仑芯 / Kunlunxin）
+
+```bash
+./kunlunxin/start.sh
 ```
 
 首次运行时，脚本会依次：

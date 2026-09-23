@@ -1,6 +1,6 @@
 # FlagGemsTerminalDevContainer
 
-A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, Cambricon, Ascend, Metax, Iluvatar, and Moore Threads hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, and a full code-quality toolchain out of the box.
+A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, Cambricon, Ascend, Metax, Iluvatar, Moore Threads, and Kunlunxin hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, and a full code-quality toolchain out of the box.
 
 [中文文档](README_cn.md)
 
@@ -24,8 +24,10 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # Metax launcher — sources common/lib.sh
 ├── iluvatar/
 │   └── start.sh          # Iluvatar launcher — sources common/lib.sh
-└── mthreads/
-    └── start.sh          # Moore Threads launcher — sources common/lib.sh
+├── mthreads/
+│   └── start.sh          # Moore Threads launcher — sources common/lib.sh
+└── kunlunxin/
+    └── start.sh          # Kunlunxin launcher — sources common/lib.sh
 ```
 
 ## Prerequisites
@@ -48,6 +50,7 @@ FlagGemsTerminalDevContainer/
 - Metax platform: `/dev/mxcd` and `/dev/dri` devices available on the host; user must be in the `video` group
 - Iluvatar platform: `/dev/iluvatar0` through `/dev/iluvatar15` devices available on the host and `/usr/local/corex` present on the host
 - Moore Threads platform: `/dev/mtgpu.0` through `/dev/mtgpu.7` and `/dev/dri` devices available on the host, `/usr/bin/mthreads-gmi` present on the host; user must be in the `render` and `video` groups
+- Kunlunxin platform: `/dev/xpu0` through `/dev/xpu7` and `/dev/xpuctrl` devices available on the host
 
 ## Quick start
 
@@ -95,6 +98,12 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 
 ```bash
 ./mthreads/start.sh
+```
+
+### Launch (Kunlunxin)
+
+```bash
+./kunlunxin/start.sh
 ```
 
 On the first run the script will:
