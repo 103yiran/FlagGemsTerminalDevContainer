@@ -488,6 +488,8 @@ _run_container() {
             -v "${container_home_host}":/home/"$(id -un)" \
             "${SSH_ARGS[@]}" \
             -e PIP_USER=0 \
+            -e LANG=C.UTF-8 \
+            -e LC_ALL=C.UTF-8 \
             -w "${WORKSPACE_DIR}" \
             --entrypoint sleep \
             "${DEV_IMAGE}" infinity
@@ -537,7 +539,7 @@ lib_main() {
     # /etc/group inside the container.  This is required for Ascend NPU access:
     # the driver checks membership of group 'HwHiAiUser' which is a supplementary
     # group — uid:gid mode only sets the primary group and skips supplementary ones.
-    docker exec -it -u "$(id -un)" -w "${WORKSPACE_DIR}" "${CONTAINER_NAME}" "${EXEC_COMMAND[@]}"
+    docker exec -it -u "$(id -un)" -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -w "${WORKSPACE_DIR}" "${CONTAINER_NAME}" "${EXEC_COMMAND[@]}"
 
     echo ""
     print_step "已退出容器（容器仍在后台运行）"

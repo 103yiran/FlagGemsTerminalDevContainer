@@ -83,7 +83,7 @@ _iluvatar_lib_main() {
     _run_container "$script_dir" "$repo_root"
 
     print_step "进入容器: ${CONTAINER_NAME} — exec: ${EXEC_COMMAND[*]}"
-    docker exec -it -u "$(id -un)" -w "${WORKSPACE_DIR}" "${CONTAINER_NAME}" "${EXEC_COMMAND[@]}"
+    docker exec -it -u "$(id -un)" -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -w "${WORKSPACE_DIR}" "${CONTAINER_NAME}" "${EXEC_COMMAND[@]}"
 
     echo ""
     print_step "已退出容器（容器仍在后台运行）"
