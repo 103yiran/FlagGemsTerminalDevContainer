@@ -361,6 +361,16 @@ tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
 rm /tmp/node.tar.xz
 npm install -g @anthropic-ai/claude-code \
     --registry https://registry.npmmirror.com
+
+# Layer 6: make zsh load /etc/profile.d/*.sh (e.g. Hygon's vendor.sh, which
+# sets LD_LIBRARY_PATH/PATH for DTK). bash picks these up via BASH_ENV, but
+# zsh has no equivalent, and zsh is the default EXEC_COMMAND — without this,
+# runtime libs like libgalaxyhip.so.5 aren't found under zsh.
+# vendor.sh overwrites PATH with a fixed value, so re-prepend /flagos/bin
+# afterwards, matching the order /etc/bash_env.sh already uses for bash.
+if [ -d /etc/profile.d ] && ! grep -q '/etc/profile.d' /etc/zsh/zshenv 2>/dev/null; then
+    printf '\nfor f in /etc/profile.d/*.sh; do [ -r \"\$f\" ] && . \"\$f\"; done\nexport PATH=\"/flagos/bin:\$PATH\"\n' >> /etc/zsh/zshenv
+fi
 "
         # Platform post-build hook: runs inside the build container as root.
         # Used e.g. by Ascend to copy the host driver into the image and fix
