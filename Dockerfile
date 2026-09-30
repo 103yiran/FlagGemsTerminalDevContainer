@@ -1,5 +1,5 @@
 # ============================================================
-# FlagGems — terminal development image (NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar + Moore Threads + Kunlunxin)
+# FlagGems — terminal development image (NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar + Moore Threads + Kunlunxin + T-Head)
 #
 # Layers development tools on top of FlagOS base images from Harbor.
 # Select the target platform via PLATFORM, TOOLKIT, and BASE_IMAGE_TAG build-args:
@@ -17,9 +17,14 @@
 #
 # Resulting base image: flagos-base-<PLATFORM>-<TOOLKIT>:<BASE_IMAGE_TAG>
 #
+# thead is built the same way nvidia is: common/lib.sh's run→exec→commit path
+# layers this Dockerfile's tooling onto a directly-named base image
+# (pkg.flytiger-eco.com/docker_release/pytorch), bypassing the
+# flagos-base-<PLATFORM>-<TOOLKIT> naming above — see thead/start.sh.
+#
 # Usage: built and launched via nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
 #        ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh,
-#        or kunlunxin/start.sh
+#        kunlunxin/start.sh, or thead/start.sh
 # ============================================================
 
 ARG PLATFORM=nvidia
@@ -86,8 +91,8 @@ RUN apt-get update \
         ripgrep \
         fd-find \
         gh \
-        $([ "$PLATFORM" = "nvidia" ] && echo "python3-pip clang-format openssh-client") \
-    && if [ "$PLATFORM" = "nvidia" ]; then \
+        $([ "$PLATFORM" = "nvidia" -o "$PLATFORM" = "thead" ] && echo "python3-pip clang-format openssh-client") \
+    && if [ "$PLATFORM" = "nvidia" -o "$PLATFORM" = "thead" ]; then \
         /usr/bin/pip3 install --no-cache-dir --break-system-packages \
             --timeout 120 --retries 5 \
             --index-url https://mirrors.aliyun.com/pypi/simple/ \

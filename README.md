@@ -1,6 +1,6 @@
 # FlagGemsTerminalDevContainer
 
-A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, Cambricon, Ascend, Metax, Iluvatar, Moore Threads, and Kunlunxin hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, and a full code-quality toolchain out of the box.
+A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, Cambricon, Ascend, Metax, Iluvatar, Moore Threads, Kunlunxin, and T-Head hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, and a full code-quality toolchain out of the box.
 
 [中文文档](README_cn.md)
 
@@ -8,7 +8,7 @@ A terminal development container environment for [FlagGems](https://github.com/F
 
 ```
 FlagGemsTerminalDevContainer/
-├── Dockerfile            # unified dev image (NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar + Moore Threads via ARG PLATFORM)
+├── Dockerfile            # unified dev image (NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar + Moore Threads + T-Head via ARG PLATFORM)
 ├── common/
 │   ├── lib.sh            # shared shell logic (arg parsing, build, run)
 │   └── setup.sh          # runs once inside a new container to install zsh/nvim plugins
@@ -26,8 +26,10 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # Iluvatar launcher — sources common/lib.sh
 ├── mthreads/
 │   └── start.sh          # Moore Threads launcher — sources common/lib.sh
-└── kunlunxin/
-    └── start.sh          # Kunlunxin launcher — sources common/lib.sh
+├── kunlunxin/
+│   └── start.sh          # Kunlunxin launcher — sources common/lib.sh
+└── thead/
+    └── start.sh          # T-Head launcher — sources common/lib.sh
 ```
 
 ## Prerequisites
@@ -51,6 +53,7 @@ FlagGemsTerminalDevContainer/
 - Iluvatar platform: `/dev/iluvatar0` through `/dev/iluvatar15` devices available on the host and `/usr/local/corex` present on the host
 - Moore Threads platform: `/dev/mtgpu.0` through `/dev/mtgpu.7` and `/dev/dri` devices available on the host, `/usr/bin/mthreads-gmi` present on the host; user must be in the `render` and `video` groups
 - Kunlunxin platform: `/dev/xpu0` through `/dev/xpu7` and `/dev/xpuctrl` devices available on the host
+- T-Head platform: `/dev/alixpu`, `/dev/alixpu_ctl`, and `/dev/alixpu_ppu0` through `/dev/alixpu_ppu7` devices available on the host
 
 ## Quick start
 
@@ -106,6 +109,12 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./kunlunxin/start.sh
 ```
 
+### Launch (T-Head)
+
+```bash
+./thead/start.sh
+```
+
 On the first run the script will:
 
 1. Build `flaggems-{platform}:dev` from the local `Dockerfile` using the FlagOS base image from Harbor
@@ -157,7 +166,7 @@ Examples:
 | Shell | zsh + oh-my-zsh with `zsh-autosuggestions` and `zsh-syntax-highlighting` |
 | Editor | Neovim ≥ 0.11 (LazyVim; plugins synced automatically on first launch) |
 | Python | `/flagos` virtualenv with FlagGems and its dependencies pre-installed (from the base image) |
-| Code quality | `pre-commit`, `flake8`, `black`, `isort`, `clang-format` (NVIDIA only) |
+| Code quality | `pre-commit`, `flake8`, `black`, `isort`, `clang-format` (NVIDIA and T-Head only) |
 | AI tooling | Claude Code CLI (`claude` command) |
 | Utilities | `ripgrep`, `fd`, `gh` (GitHub CLI), passwordless `sudo` |
 

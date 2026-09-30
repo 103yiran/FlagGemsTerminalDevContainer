@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # common/lib.sh — shared logic for nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
 #                 ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh,
-#                 kunlunxin/start.sh
+#                 kunlunxin/start.sh, thead/start.sh
 #
 # Callers must set before sourcing:
-#   PLATFORM          nvidia | hygon | cambricon | metax | ascend | iluvatar | mthreads | kunlunxin
+#   PLATFORM          nvidia | hygon | cambricon | metax | ascend | iluvatar | mthreads | kunlunxin | thead
 #
 # Callers may override defaults:
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
@@ -23,11 +23,16 @@ set -euo pipefail
 DEV_IMAGE="${DEV_IMAGE:-flaggems-${PLATFORM}:dev}"
 CONTAINER_NAME="${CONTAINER_NAME:-flaggems-${PLATFORM}-dev-$(id -un)}"
 
-# nvidia uses a dedicated vllm base image under a different registry path
+# nvidia and thead use a dedicated (non flagos-runtime) base image under a
+# different registry path; both set BASE_IMAGE_TAG/REGISTRY/NAME themselves
+# before sourcing this file, so this branch only needs to avoid clobbering
+# BASE_IMAGE_TAG with the flagos-runtime default below.
 if [[ "${PLATFORM}" == "nvidia" ]]; then
     BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2-0.2.1_g825c1cd}"
     BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-app}"
     BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3}"
+elif [[ "${PLATFORM}" == "thead" ]]; then
+    : # BASE_IMAGE_TAG/REGISTRY/NAME already set by thead/start.sh
 else
     BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2}"
     BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-runtime}"
@@ -246,7 +251,9 @@ chown -R '${_uid}:${_gid}' /usr/local/share/uv
 # /flagos/bin/python is a symlink into /root/.local/share/uv/python/…;
 # We must also open up every ancestor directory along the target path.
 chown -R '${_uid}:${_gid}' /flagos
-chmod a+x /root /root/.local /root/.local/share
+if [ -d /root/.local/share ]; then
+    chmod a+x /root /root/.local /root/.local/share
+fi
 if [ -d /root/.local/share/uv/python ]; then
     chmod -R a+rX /root/.local/share/uv/python
 fi
@@ -275,8 +282,8 @@ PLATFORM='${PLATFORM}'
 apt-get update
 apt-get install -y --no-install-recommends \
     sudo zsh git curl wget unzip ca-certificates ripgrep fd-find gh openssh-client \
-    \$([ \"\$PLATFORM\" = 'nvidia' ] && echo 'python3-pip clang-format')
-if [ \"\$PLATFORM\" = 'nvidia' ]; then
+    \$([ \"\$PLATFORM\" = 'nvidia' -o \"\$PLATFORM\" = 'thead' ] && echo 'python3-pip clang-format')
+if [ \"\$PLATFORM\" = 'nvidia' -o \"\$PLATFORM\" = 'thead' ]; then
     /usr/bin/pip3 install --no-cache-dir --break-system-packages \
         --timeout 120 --retries 5 \
         --index-url https://mirrors.aliyun.com/pypi/simple/ \
@@ -384,6 +391,7 @@ fi
         # Commit the container as the dev image with metadata
         # For nvidia, prepend /flagos/bin to whatever PATH the base image already
         # has, so vllm and the /flagos venv python are reachable for all users.
+        # thead's base image has no /flagos venv, so it's excluded here.
         local _path_change=""
         if [[ "$PLATFORM" == "nvidia" ]]; then
             local _base_path
@@ -436,6 +444,8 @@ _print_summary() {
     elif [[ "$PLATFORM" == "kunlunxin" ]]; then
         local toolkit="${TOOLKIT_VERSION:-xre5.37.1}"
         base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-kunlunxin-${toolkit}:${BASE_IMAGE_TAG}"
+    elif [[ "$PLATFORM" == "thead" ]]; then
+        base_image="${BASE_IMAGE_NAME}:${BASE_IMAGE_TAG}"
     else
         base_image="未知平台"
     fi

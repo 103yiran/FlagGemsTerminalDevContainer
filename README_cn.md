@@ -2,13 +2,13 @@
 
 [English](README.md)
 
-为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境,支持 NVIDIA、Hygon、Cambricon、Ascend、Metax、Iluvatar、摩尔线程（Moore Threads）、昆仑芯（Kunlunxin）八种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code 及完整的代码质量工具链。
+为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境,支持 NVIDIA、Hygon、Cambricon、Ascend、Metax、Iluvatar、摩尔线程（Moore Threads）、昆仑芯（Kunlunxin）、平头哥（T-Head）九种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code 及完整的代码质量工具链。
 
 ## 目录结构
 
 ```
 FlagGemsTerminalDevContainer/
-├── Dockerfile            # 统一 dev 镜像（NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar + 摩尔线程，通过 ARG PLATFORM 区分）
+├── Dockerfile            # 统一 dev 镜像（NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar + 摩尔线程 + 平头哥，通过 ARG PLATFORM 区分）
 ├── common/
 │   ├── lib.sh            # 公共 shell 逻辑（参数解析、镜像构建、容器启动）
 │   └── setup.sh          # 容器首次启动时运行，安装 zsh/nvim 插件
@@ -26,8 +26,10 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # Iluvatar 启动脚本，source common/lib.sh
 ├── mthreads/
 │   └── start.sh          # 摩尔线程启动脚本，source common/lib.sh
-└── kunlunxin/
-    └── start.sh          # 昆仑芯启动脚本，source common/lib.sh
+├── kunlunxin/
+│   └── start.sh          # 昆仑芯启动脚本，source common/lib.sh
+└── thead/
+    └── start.sh          # 平头哥启动脚本，source common/lib.sh
 ```
 
 ## 前置条件
@@ -51,6 +53,7 @@ FlagGemsTerminalDevContainer/
 - Iluvatar 平台：宿主机已挂载 `/dev/iluvatar0` 至 `/dev/iluvatar15` 设备，且 `/usr/local/corex` 已就位
 - 摩尔线程（Moore Threads）平台：宿主机已挂载 `/dev/mtgpu.0` 至 `/dev/mtgpu.7` 及 `/dev/dri` 设备，`/usr/bin/mthreads-gmi` 已就位，用户需在 `render` 和 `video` 组中
 - 昆仑芯（Kunlunxin）平台：宿主机已挂载 `/dev/xpu0` 至 `/dev/xpu7` 及 `/dev/xpuctrl` 设备
+- 平头哥（T-Head）平台：宿主机已挂载 `/dev/alixpu`、`/dev/alixpu_ctl` 及 `/dev/alixpu_ppu0` 至 `/dev/alixpu_ppu7` 设备
 
 ## 快速开始
 
@@ -106,6 +109,12 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./kunlunxin/start.sh
 ```
 
+### 启动容器（平头哥 / T-Head）
+
+```bash
+./thead/start.sh
+```
+
 首次运行时，脚本会依次：
 
 1. 用本目录的 `Dockerfile` 从 Harbor 拉取 FlagOS base 镜像，构建 `flaggems-{platform}:dev`
@@ -157,7 +166,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 | Shell | zsh + oh-my-zsh，启用 `zsh-autosuggestions`、`zsh-syntax-highlighting` |
 | 编辑器 | Neovim ≥ 0.11（LazyVim，首次启动时自动同步插件） |
 | Python | `/flagos` 虚拟环境，已安装 FlagGems 及依赖（由 base 镜像提供） |
-| 代码质量 | `pre-commit`、`flake8`、`black`、`isort`、`clang-format`（仅 NVIDIA） |
+| 代码质量 | `pre-commit`、`flake8`、`black`、`isort`、`clang-format`（仅 NVIDIA 和平头哥） |
 | AI 工具 | Claude Code CLI（`claude` 命令） |
 | 其他 | `ripgrep`、`fd`、`gh`（GitHub CLI）、`sudo`（无密码） |
 
