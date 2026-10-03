@@ -29,7 +29,7 @@
 
 ARG PLATFORM=nvidia
 ARG TOOLKIT=cuda13.3
-ARG BASE_IMAGE_TAG=2.1.2
+ARG BASE_IMAGE_TAG=2.2.0
 ARG BASE_IMAGE_REGISTRY=harbor.baai.ac.cn/flagos-base
 
 FROM ${BASE_IMAGE_REGISTRY}/flagos-base-${PLATFORM}-${TOOLKIT}:${BASE_IMAGE_TAG} AS base
@@ -125,14 +125,14 @@ RUN apt-get update \
     && nvim --version | head -1
 
 # ------------------------------------------------------------------
-# Claude Code CLI — Node.js from Aliyun mirror + npm via npmmirror
+# Claude Code CLI + Codex CLI — Node.js from Aliyun mirror + npm via npmmirror
 # ------------------------------------------------------------------
 RUN curl -fsSL --retry 3 \
         "https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-arm64.tar.xz" \
         -o /tmp/node.tar.xz \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
-    && npm install -g @anthropic-ai/claude-code \
+    && npm install -g @anthropic-ai/claude-code @openai/codex \
         --registry https://registry.npmmirror.com
 
 # ------------------------------------------------------------------

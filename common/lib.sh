@@ -28,9 +28,9 @@ CONTAINER_NAME="${CONTAINER_NAME:-flaggems-${PLATFORM}-dev-$(id -un)}"
 # before sourcing this file, so this branch only needs to avoid clobbering
 # BASE_IMAGE_TAG with the flagos-runtime default below.
 if [[ "${PLATFORM}" == "nvidia" ]]; then
-    BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2-0.2.1_g825c1cd}"
+    BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.2.0-0.3.0}"
     BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-app}"
-    BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-harbor.baai.ac.cn/flagos-app/vllm0.20.2-nvidia-cuda13.3}"
+    BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-13.3}"
 elif [[ "${PLATFORM}" == "thead" ]]; then
     : # BASE_IMAGE_TAG/REGISTRY/NAME already set by thead/start.sh
 else
@@ -366,7 +366,7 @@ curl -fsSL --retry 3 \
     -o /tmp/node.tar.xz
 tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
 rm /tmp/node.tar.xz
-npm install -g @anthropic-ai/claude-code \
+npm install -g @anthropic-ai/claude-code @openai/codex \
     --registry https://registry.npmmirror.com
 
 # Layer 6: make zsh load /etc/profile.d/*.sh (e.g. Hygon's vendor.sh, which
@@ -422,7 +422,7 @@ _print_summary() {
     local base_image
     if [[ "$PLATFORM" == "nvidia" ]]; then
         local toolkit="${TOOLKIT_VERSION:-cuda13.3}"
-        base_image="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/vllm0.20.2-nvidia-${toolkit}}:${BASE_IMAGE_TAG}"
+        base_image="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/vllm0.24.0-generic-${toolkit}}:${BASE_IMAGE_TAG}"
     elif [[ "$PLATFORM" == "hygon" ]]; then
         local toolkit="${TOOLKIT_VERSION:-dtk26.04}"
         base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-hygon-${toolkit}:${BASE_IMAGE_TAG}"
