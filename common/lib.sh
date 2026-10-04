@@ -559,7 +559,15 @@ lib_main() {
     # /etc/group inside the container.  This is required for Ascend NPU access:
     # the driver checks membership of group 'HwHiAiUser' which is a supplementary
     # group — uid:gid mode only sets the primary group and skips supplementary ones.
-    docker exec -it -u "$(id -un)" -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -w "${WORKSPACE_DIR}" "${CONTAINER_NAME}" "${EXEC_COMMAND[@]}"
+    # Propagate TERM/COLORTERM from the host — docker exec doesn't inherit
+    # them automatically, and without a real TERM nvim/tmux fall back to an
+    # 8-color palette, which renders things like CursorLine as black.
+    docker exec -it -u "$(id -un)" \
+        -e LANG=C.UTF-8 \
+        -e LC_ALL=C.UTF-8 \
+        -e TERM="${TERM:-xterm-256color}" \
+        -e COLORTERM="${COLORTERM:-truecolor}" \
+        -w "${WORKSPACE_DIR}" "${CONTAINER_NAME}" "${EXEC_COMMAND[@]}"
 
     echo ""
     print_step "已退出容器（容器仍在后台运行）"

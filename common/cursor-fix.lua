@@ -8,36 +8,47 @@
 -- Then restart nvim or run: :Lazy reload cursor-fix
 
 return {
-  -- Override colorscheme settings to fix cursor visibility
+  -- opts.colorscheme is the name/function LazyVim calls to actually load a
+  -- theme at startup — it is NOT a post-load hook. The previous version of
+  -- this file put an autocmd registration there instead of ever calling
+  -- vim.cmd.colorscheme(...), so no theme was ever loaded (vim.g.colors_name
+  -- stayed nil) and nvim fell back to its built-in default colors, which is
+  -- why CursorLine rendered darker than Normal instead of lighter.
   {
     "LazyVim/LazyVim",
     opts = {
-      colorscheme = function()
-        -- Apply after any colorscheme loads
-        vim.api.nvim_create_autocmd("ColorScheme", {
-          pattern = "*",
-          callback = function()
-            -- Set highly visible cursor colors (bright green)
-            vim.api.nvim_set_hl(0, "Cursor", { fg = "#000000", bg = "#00ff00", bold = true })
-            vim.api.nvim_set_hl(0, "TermCursor", { fg = "#000000", bg = "#00ff00", bold = true })
-            vim.api.nvim_set_hl(0, "lCursor", { fg = "#000000", bg = "#00ff00", bold = true })
-
-            -- Subtle cursorline background
-            vim.api.nvim_set_hl(0, "CursorLine", { bg = "#2d2d2d" })
-            vim.api.nvim_set_hl(0, "CursorLineNr", { fg = "#ffff00", bold = true })
-
-            -- Fix Comment highlighting - remove background color
-            local comment_hl = vim.api.nvim_get_hl(0, { name = "Comment" })
-            if comment_hl.bg then
-              vim.api.nvim_set_hl(0, "Comment", {
-                fg = comment_hl.fg or "#6c7086",
-                italic = true,
-              })
-            end
-          end,
-        })
-      end,
+      colorscheme = "tokyonight",
     },
+  },
+
+  -- Apply cursor/cursorline overrides after every colorscheme load (including
+  -- the one above), so manual :colorscheme switches keep the fix too.
+  {
+    "LazyVim/LazyVim",
+    opts = function()
+      vim.api.nvim_create_autocmd("ColorScheme", {
+        pattern = "*",
+        callback = function()
+          -- Set highly visible cursor colors (bright green)
+          vim.api.nvim_set_hl(0, "Cursor", { fg = "#000000", bg = "#00ff00", bold = true })
+          vim.api.nvim_set_hl(0, "TermCursor", { fg = "#000000", bg = "#00ff00", bold = true })
+          vim.api.nvim_set_hl(0, "lCursor", { fg = "#000000", bg = "#00ff00", bold = true })
+
+          -- Subtle cursorline background
+          vim.api.nvim_set_hl(0, "CursorLine", { bg = "#2d2d2d" })
+          vim.api.nvim_set_hl(0, "CursorLineNr", { fg = "#ffff00", bold = true })
+
+          -- Fix Comment highlighting - remove background color
+          local comment_hl = vim.api.nvim_get_hl(0, { name = "Comment" })
+          if comment_hl.bg then
+            vim.api.nvim_set_hl(0, "Comment", {
+              fg = comment_hl.fg or "#6c7086",
+              italic = true,
+            })
+          end
+        end,
+      })
+    end,
   },
 
   -- Configure cursor options
