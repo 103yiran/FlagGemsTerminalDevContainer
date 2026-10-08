@@ -9,7 +9,7 @@
 # Callers may override defaults:
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
 #   CONTAINER_NAME    (default: flaggems-${PLATFORM}-dev-$(id -un))
-#   BASE_IMAGE_TAG    (default: 2.1.2, except nvidia 2.2.0-0.3.0 and
+#   BASE_IMAGE_TAG    (default: 2.2.0, except nvidia 2.2.0-0.3.0 and
 #                      kunlunxin/thead which set their own)
 #   BASE_IMAGE_NAME   (default: ${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION};
 #                      nvidia uses flagos-app/vllm0.24.0-generic-13.3;
@@ -51,7 +51,7 @@ if [[ "${PLATFORM}" == "nvidia" ]]; then
 elif [[ "${PLATFORM}" == "thead" ]]; then
     : # BASE_IMAGE_TAG/REGISTRY/NAME already set by thead/start.sh
 else
-    BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2}"
+    BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.2.0}"
     BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-runtime}"
 fi
 

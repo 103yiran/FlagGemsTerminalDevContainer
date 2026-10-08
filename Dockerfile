@@ -14,7 +14,7 @@
 #   PLATFORM=kunlunxin             — TOOLKIT default: xre5.37.1
 #   PLATFORM=enflame               — TOOLKIT default: tops1.10.6
 #   TOOLKIT                        — override toolkit version (replaces per-platform default)
-#   BASE_IMAGE_TAG=2.1.2           — FlagOS base image version
+#   BASE_IMAGE_TAG=2.2.0           — FlagOS base image version
 #
 # Resulting base image: flagos-base-<PLATFORM>-<TOOLKIT>:<BASE_IMAGE_TAG>
 #

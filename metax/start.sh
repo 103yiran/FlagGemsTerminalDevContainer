@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # metax/start.sh — launch the FlagGems Metax development container.
 #
-# Base image:  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2
+# Base image:  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.2.0
 #              (toolkit maca3.8.1.3; dev image flaggems-metax:dev)
 #
 # Options and examples:  ./metax/start.sh --help
