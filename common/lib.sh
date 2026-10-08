@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # common/lib.sh — shared logic for nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
 #                 ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh,
-#                 kunlunxin/start.sh, thead/start.sh
+#                 kunlunxin/start.sh, thead/start.sh, enflame/start.sh
 #
 # Callers must set before sourcing:
-#   PLATFORM          nvidia | hygon | cambricon | metax | ascend | iluvatar | mthreads | kunlunxin | thead
+#   PLATFORM          nvidia | hygon | cambricon | metax | ascend | iluvatar | mthreads | kunlunxin | thead | enflame
 #
 # Callers may override defaults:
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)

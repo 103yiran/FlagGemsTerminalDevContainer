@@ -74,6 +74,7 @@ BASE_IMAGE_TAG=0.22.0-ubuntu22.04-dtk2604-py3.10 ./hygon-vllm/start.sh
 ./mthreads/start.sh
 ./kunlunxin/start.sh
 ./thead/start.sh
+./enflame/start.sh
 ```
 
 某个平台第一次运行时,脚本会：

@@ -1,5 +1,5 @@
 # ============================================================
-# FlagGems — terminal development image (NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar + Moore Threads + Kunlunxin + T-Head)
+# FlagGems — terminal development image (NVIDIA + Hygon + Cambricon + Ascend + Metax + Iluvatar + Moore Threads + Kunlunxin + T-Head + Enflame)
 #
 # Layers development tools on top of FlagOS base images from Harbor.
 # Select the target platform via PLATFORM, TOOLKIT, and BASE_IMAGE_TAG build-args:
@@ -12,6 +12,7 @@
 #   PLATFORM=iluvatar              — TOOLKIT default: corex4.5.0
 #   PLATFORM=mthreads              — TOOLKIT default: musa5.2.0
 #   PLATFORM=kunlunxin             — TOOLKIT default: xre5.37.1
+#   PLATFORM=enflame               — TOOLKIT default: tops1.10.6
 #   TOOLKIT                        — override toolkit version (replaces per-platform default)
 #   BASE_IMAGE_TAG=2.1.2           — FlagOS base image version
 #
@@ -37,7 +38,7 @@
 # Usage: built and launched via nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
 #        ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh,
 #        kunlunxin/start.sh, hygon-vllm/start.sh, nvidia-vllm/start.sh,
-#        mthreads-vllm/start.sh, or thead/start.sh
+#        mthreads-vllm/start.sh, thead/start.sh, or enflame/start.sh
 # ============================================================
 
 ARG PLATFORM=nvidia

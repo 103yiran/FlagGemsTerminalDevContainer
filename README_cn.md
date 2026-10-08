@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境，支持 NVIDIA、Hygon、Cambricon、Ascend、Metax、Iluvatar、摩尔线程（Moore Threads）、昆仑芯（Kunlunxin）、平头哥（T-Head）九种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code、Codex 及完整的代码质量工具链。
+为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境，支持 NVIDIA、Hygon、Cambricon、Ascend、Metax、Iluvatar、摩尔线程（Moore Threads）、昆仑芯（Kunlunxin）、平头哥（T-Head）、燧原（Enflame）十种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code、Codex 及完整的代码质量工具链。
 
 本 README 只覆盖快速上手。仓库结构、各平台前置条件、`start.sh` 参数/环境变量、容器内环境、网络与 SSH 配置、Ascend 已知限制，以及如何新增平台，详见
 **[docs/zh-cn](docs/zh-cn/_index.md)**。
@@ -44,6 +44,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./mthreads-vllm/start.sh # 摩尔线程，上游 vllm base 镜像
 ./kunlunxin/start.sh    # 昆仑芯（Kunlunxin）
 ./thead/start.sh        # 平头哥（T-Head）
+./enflame/start.sh       # 燧原（Enflame）
 ```
 
 首次运行时，脚本会构建 dev 镜像、创建容器并把仓库挂载到 `/workspace/` 下、在容器内安装 oh-my-zsh/LazyVim，然后进入 zsh。后续再次运行会直接复用已有的镜像和容器。完整的 `start.sh` 参数/环境变量说明和示例见

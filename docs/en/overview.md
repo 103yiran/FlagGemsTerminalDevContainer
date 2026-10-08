@@ -6,7 +6,7 @@ FlagGemsTerminalDevContainer is a set of launcher scripts that spin up a
 terminal-based development container for [FlagGems](https://github.com/FlagOpen/FlagGems)
 contributors, one per supported hardware platform: NVIDIA (plain and vllm
 variants), Hygon (plain and vllm variants), Cambricon, Ascend (four
-variants), Metax, Iluvatar, Moore Threads, Kunlunxin, and T-Head. Every
+variants), Metax, Iluvatar, Moore Threads, Kunlunxin, T-Head, and Enflame. Every
 platform shares the same container shape — zsh + oh-my-zsh,
 Neovim (LazyVim), Claude Code CLI, Codex CLI, and a FlagGems-ready Python
 environment — and differs only in which device files, kernel driver, and
@@ -42,7 +42,8 @@ FlagGemsTerminalDevContainer/
 ├── mthreads/start.sh      # Moore Threads launcher
 ├── mthreads-vllm/start.sh # Moore Threads launcher on the upstream vllm image
 ├── kunlunxin/start.sh     # Kunlunxin launcher
-└── thead/start.sh         # T-Head launcher
+├── thead/start.sh         # T-Head launcher
+└── enflame/start.sh       # Enflame launcher
 ```
 
 Every `<platform>/start.sh` follows the same shape:

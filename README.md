@@ -1,6 +1,6 @@
 # FlagGemsTerminalDevContainer
 
-A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, Cambricon, Ascend, Metax, Iluvatar, Moore Threads, Kunlunxin, and T-Head hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, Codex, and a full code-quality toolchain out of the box.
+A terminal development container environment for [FlagGems](https://github.com/FlagOpen/FlagGems) contributors, supporting NVIDIA, Hygon, Cambricon, Ascend, Metax, Iluvatar, Moore Threads, Kunlunxin, T-Head, and Enflame hardware platforms. The container ships with zsh, Neovim (LazyVim), Claude Code, Codex, and a full code-quality toolchain out of the box.
 
 [中文文档](README_cn.md)
 
@@ -50,6 +50,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./mthreads-vllm/start.sh # Moore Threads, upstream vllm base image
 ./kunlunxin/start.sh    # Kunlunxin
 ./thead/start.sh        # T-Head
+./enflame/start.sh       # Enflame
 ```
 
 On the first run the script builds the dev image, creates the container with
