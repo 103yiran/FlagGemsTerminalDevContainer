@@ -2,9 +2,12 @@
 # setup.sh — run once inside the container to configure zsh and nvim.
 # Idempotent: safe to run multiple times.
 #
-# Requires SSH agent forwarding for GitHub access.  If the agent has
-# no loaded key the GitHub steps are skipped with a warning rather
-# than aborting the whole script.
+# Requires SSH access for cloning the nvim/zsh plugins.  The host must have
+# an SSH key configured and its public key registered on GitCode
+# (https://gitcode.com/) — plugins come from gitcode gh_mirrors where
+# available, with a direct GitHub SSH fallback.  If no key or agent key is
+# available the plugin steps are skipped with a warning rather than aborting
+# the whole script.
 set -uo pipefail
 
 # ------------------------------------------------------------------

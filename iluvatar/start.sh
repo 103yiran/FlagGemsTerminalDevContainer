@@ -1,23 +1,13 @@
 #!/usr/bin/env bash
 # iluvatar/start.sh — launch the FlagGems Iluvatar development container.
 #
-# Step 1: build (or skip) flaggems-iluvatar:dev from root Dockerfile
-#         using harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0 as base
-# Step 2: start container with -itd (detached), then exec into it
+# Base image:  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2
+#              (toolkit corex4.5.0; dev image flaggems-iluvatar:dev)
 #
-# Usage:
-#   ./iluvatar/start.sh                         # default container name, mounts FlagGems
-#   ./iluvatar/start.sh -n my_container         # custom container name
-#   ./iluvatar/start.sh -f                      # force-recreate container
-#   ./iluvatar/start.sh --rebuild-dev           # force-rebuild dev image
-#   ./iluvatar/start.sh --rebuild               # force-rebuild dev image
-#   ./iluvatar/start.sh --ssh-agent             # use SSH agent forwarding instead
-#   ./iluvatar/start.sh -c "python a.py"        # exec command (default: zsh)
-#   ./iluvatar/start.sh --repo ../FlagTree      # mount FlagTree instead of FlagGems
-#   ./iluvatar/start.sh --repo ../A --repo ../B # mount multiple repos
-#   ./iluvatar/start.sh --base-tag 2.2.0        # use FlagOS base image version 2.2.0
+# Options, host requirements (an SSH key on the host with its public key
+# registered on GitCode) and examples:  ./iluvatar/start.sh --help
+# Full documentation:  common/lib.sh, README.md
 #
-# See common/lib.sh for full option documentation.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

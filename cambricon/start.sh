@@ -1,28 +1,13 @@
 #!/usr/bin/env bash
 # cambricon/start.sh — launch the FlagGems Cambricon development container.
 #
-# Step 1: build (or skip) flaggems-cambricon:dev from root Dockerfile
-#         using harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2 as base
-# Step 2: start container with -itd (detached), then exec into it
+# Base image:  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2
+#              (toolkit neuware4.7.2; dev image flaggems-cambricon:dev)
 #
-# SSH key forwarding (applied at container creation, pick one):
-#   ~/.ssh dir mount  — default; keys available as files (read-only)
-#   SSH agent forward — private key never leaves the host; requires
-#                       ssh-agent running with keys loaded on the host
+# Options, host requirements (an SSH key on the host with its public key
+# registered on GitCode) and examples:  ./cambricon/start.sh --help
+# Full documentation:  common/lib.sh, README.md
 #
-# Usage:
-#   ./cambricon/start.sh                         # default container name, mounts FlagGems
-#   ./cambricon/start.sh -n my_container         # custom container name
-#   ./cambricon/start.sh -f                      # force-recreate container
-#   ./cambricon/start.sh --rebuild-dev           # force-rebuild dev image
-#   ./cambricon/start.sh --rebuild               # force-rebuild dev image
-#   ./cambricon/start.sh --ssh-agent             # use SSH agent forwarding instead
-#   ./cambricon/start.sh -c "python a.py"        # exec command (default: zsh)
-#   ./cambricon/start.sh --repo ../FlagTree      # mount FlagTree instead of FlagGems
-#   ./cambricon/start.sh --repo ../A --repo ../B # mount multiple repos
-#   ./cambricon/start.sh --base-tag 2.2.0        # use FlagOS base image version 2.2.0
-#
-# See common/lib.sh for full option documentation.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

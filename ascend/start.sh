@@ -1,28 +1,13 @@
 #!/usr/bin/env bash
 # ascend/start.sh — launch the FlagGems Ascend development container.
 #
-# Step 1: build (or skip) flaggems-ascend:dev from root Dockerfile
-#         using harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0 as base
-# Step 2: start container with -itd (detached), then exec into it
+# Base image:  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.2
+#              (toolkit cann9.0.0; dev image flaggems-ascend:dev)
 #
-# SSH key forwarding (applied at container creation, pick one):
-#   ~/.ssh dir mount  — default; keys available as files (read-only)
-#   SSH agent forward — private key never leaves the host; requires
-#                       ssh-agent running with keys loaded on the host
+# Options, host requirements (an SSH key on the host with its public key
+# registered on GitCode) and examples:  ./ascend/start.sh --help
+# Full documentation:  common/lib.sh, README.md
 #
-# Usage:
-#   ./ascend/start.sh                         # default container name, mounts FlagGems
-#   ./ascend/start.sh -n my_container         # custom container name
-#   ./ascend/start.sh -f                      # force-recreate container
-#   ./ascend/start.sh --rebuild-dev           # force-rebuild dev image
-#   ./ascend/start.sh --rebuild               # force-rebuild dev image
-#   ./ascend/start.sh --ssh-agent             # use SSH agent forwarding instead
-#   ./ascend/start.sh -c "python a.py"        # exec command (default: zsh)
-#   ./ascend/start.sh --repo ../FlagTree      # mount FlagTree instead of FlagGems
-#   ./ascend/start.sh --repo ../A --repo ../B # mount multiple repos
-#   ./ascend/start.sh --base-tag 2.1.2        # use FlagOS base image version 2.1.2
-#
-# See common/lib.sh for full option documentation.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

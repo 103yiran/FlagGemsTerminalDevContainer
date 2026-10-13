@@ -45,6 +45,18 @@ FlagGemsTerminalDevContainer/
 
   其他仓库（如 `FlagTree`）可通过 `--repo` 参数在运行时挂载。
 
+- **宿主机需要已配置 SSH 密钥，并将其公钥添加到 [GitCode](https://gitcode.com/)。**
+  容器内需要通过 GitCode SSH 访问来安装编辑器和 shell 插件（LazyVim /
+  lazy.nvim 及其依赖会优先从 `gitcode.com` 镜像克隆）。先在宿主机上确认密钥可用：
+
+  ```bash
+  ssh -T git@gitcode.com    # 应打印欢迎信息，而不是 "Permission denied"
+  ```
+
+  如果失败，请将公钥（`~/.ssh/id_ed25519.pub`、`~/.ssh/id_rsa.pub` 或
+  `~/.ssh/id_ecdsa.pub`）添加到 GitCode 账号的 *设置 → SSH 公钥* 中。没有可用密钥时，
+  插件安装会被跳过，容器内只有一个裸 nvim 和普通 zsh。
+
 - NVIDIA 平台：宿主机已安装 NVIDIA Container Toolkit
 - Hygon 平台：宿主机已挂载 `/dev/kfd`、`/dev/dri` 等设备，`/opt/hyhal` 已就位
 - Cambricon 平台：宿主机已挂载 `/dev/cambricon_dev*` 及 `/dev/cambricon_ctl` 设备
@@ -174,7 +186,15 @@ FlagGems 源码默认挂载到 `/workspace/FlagGems`。容器的 `$HOME` 目录�
 
 ## SSH 配置
 
-`setup.sh` 需要通过 SSH 访问 GitHub 来克隆 LazyVim 和 zsh 插件。
+`setup.sh` 需要通过 SSH 克隆 LazyVim、lazy.nvim 及插件集。插件优先从
+[GitCode](https://gitcode.com/) 镜像获取，镜像缺失时回退到 GitHub SSH，
+因此**宿主机必须已配置 SSH 密钥，且公钥已添加到 GitCode 账号**。可用以下命令验证：
+
+```bash
+ssh -T git@gitcode.com
+```
+
+两种转发方式任选其一：
 
 - **默认模式（挂载 `~/.ssh`）**：宿主机的 `~/.ssh` 以只读方式挂载进容器，密钥作为文件存在。
 - **Agent 模式（`--ssh-agent`）**：私钥不进入容器，只转发 `SSH_AUTH_SOCK`，需要宿主机已运行 `ssh-agent` 并通过 `ssh-add` 加载密钥。

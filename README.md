@@ -45,6 +45,21 @@ FlagGemsTerminalDevContainer/
 
   Additional repos (e.g. `FlagTree`) can be mounted at runtime via `--repo`.
 
+- **SSH key configured on the host and the public key added to [GitCode](https://gitcode.com/).**
+  The container needs GitCode SSH access to install the editor and shell
+  plugins (LazyVim / lazy.nvim and their dependencies are cloned from
+  `gitcode.com` mirrors where available). First verify on the host that key
+  based access works:
+
+  ```bash
+  ssh -T git@gitcode.com    # should print a welcome message, not "Permission denied"
+  ```
+
+  If it fails, add the public key (`~/.ssh/id_ed25519.pub`, `~/.ssh/id_rsa.pub`,
+  or `~/.ssh/id_ecdsa.pub`) to your GitCode account under *Settings → SSH
+  Public Keys*. Without a usable key, plugin installation is skipped and you
+  get a bare nvim / plain zsh instead.
+
 - NVIDIA platform: NVIDIA Container Toolkit installed on the host
 - Hygon platform: `/dev/kfd`, `/dev/dri` devices available on the host and `/opt/hyhal` mounted
 - Cambricon platform: `/dev/cambricon_dev*` and `/dev/cambricon_ctl` devices available on the host
@@ -174,7 +189,16 @@ The FlagGems source tree is bind-mounted at `/workspace/FlagGems` by default. Th
 
 ## SSH configuration
 
-`setup.sh` needs SSH access to GitHub to clone LazyVim and zsh plugins.
+`setup.sh` needs SSH access to clone LazyVim, lazy.nvim, and the plugin set.
+Plugins are fetched from [GitCode](https://gitcode.com/) mirrors where they
+exist, with a direct fall back to GitHub SSH — so **the host must have an SSH
+key whose public half is registered on your GitCode account**. Verify with:
+
+```bash
+ssh -T git@gitcode.com
+```
+
+Then either forwarding mode works:
 
 - **Default (mount `~/.ssh`)**: the host's `~/.ssh` directory is mounted read-only into the container.
 - **Agent forwarding (`--ssh-agent`)**: the private key never enters the container; only `SSH_AUTH_SOCK` is forwarded. Requires `ssh-agent` to be running on the host with keys loaded via `ssh-add`.

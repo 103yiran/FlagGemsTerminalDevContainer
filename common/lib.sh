@@ -9,8 +9,14 @@
 # Callers may override defaults:
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
 #   CONTAINER_NAME    (default: flaggems-${PLATFORM}-dev-$(id -un))
-#   BASE_IMAGE_TAG    (default: 2.1.2)
+#   BASE_IMAGE_TAG    (default: 2.1.2, except nvidia 2.2.0-0.3.0 and
+#                      kunlunxin/thead which set their own)
+#   BASE_IMAGE_NAME   (default: ${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION};
+#                      nvidia uses flagos-app/vllm0.24.0-generic-13.3)
 #   TOOLKIT_VERSION   (optional: override toolkit version, passed as TOOLKIT build-arg)
+#
+# BASE_IMAGE_NAME and BASE_IMAGE_TAG are resolved into the final reference by
+# base_image_ref() — use it rather than rebuilding the string by hand.
 #
 # After sourcing, callers must define:
 #   platform_hardware_args   function — echoes platform-specific docker run flags
@@ -37,6 +43,19 @@ else
     BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.1.2}"
     BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-runtime}"
 fi
+
+# ── Base image resolution ─────────────────────────────────────────
+# Single source of truth for "which base image does this platform use".
+# The build path, the container summary and --help all call this, so the
+# three can no longer drift apart the way they had (--help was still
+# advertising the 2.1.2 default on platforms pinned to another tag).
+#
+# nvidia and thead arrive here with BASE_IMAGE_NAME already set (lib.sh's
+# defaults or their own start.sh), which is why one expression covers every
+# platform: the flagos-runtime-<platform>-<toolkit> form is only the fallback.
+base_image_ref() {
+    echo "${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION}}:${BASE_IMAGE_TAG}"
+}
 
 # ── Runtime state ─────────────────────────────────────────────────
 FORCE_RECREATE=false
@@ -75,9 +94,15 @@ show_help() {
     -c, --cmd COMMAND       exec 进容器时执行的命令（默认: zsh）
         --repo PATH         挂载仓库到 /workspace/<name>，可重复使用
                             （默认: FlagGems → /workspace/FlagGems）
-        --base-tag VERSION  指定 FlagOS base 镜像版本（默认: 2.1.2）
+        --base-tag VERSION  指定 base 镜像版本
+                            （当前平台默认: ${BASE_IMAGE_TAG}）
+
+当前平台: ${PLATFORM}
+base 镜像: $(base_image_ref)
 
 SSH 说明:
+    宿主机需已配置 SSH 密钥，且公钥已添加到 GitCode 账号（用于克隆 nvim/zsh 插件）。
+    可先验证: ssh -T git@gitcode.com
     默认将宿主机 ~/.ssh 以只读方式挂载到容器内，密钥作为文件存在。
     --ssh-agent 模式下私钥不进入容器，仅转发 SSH_AUTH_SOCK socket，
     需要宿主机已运行 ssh-agent 并通过 ssh-add 加载密钥。
@@ -156,7 +181,7 @@ _ensure_ssh_agent() {
         if [[ $added -eq 0 ]]; then
             print_warn "未找到标准私钥（id_ed25519 / id_rsa / id_ecdsa）"
             print_warn "如密钥路径不同，请手动运行: ssh-add <私钥路径>"
-            print_warn "setup.sh 需要 SSH 访问 GitHub，密钥缺失时 nvim/zsh 插件安装将跳过"
+            print_warn "宿主机需配置 SSH 密钥并添加到 GitCode，密钥缺失时 nvim/zsh 插件安装将跳过"
         fi
     else
         print_info "ssh-agent 已运行，已加载密钥: $(ssh-add -l | wc -l) 个"
@@ -201,8 +226,8 @@ _build_dev() {
 
         # BASE_IMAGE_NAME can be set by the caller to override the default image name
         # (without tag); the tag is always appended from BASE_IMAGE_TAG.
-        local _base_name="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION}}"
-        local base_image="${_base_name}:${BASE_IMAGE_TAG}"
+        local base_image
+        base_image="$(base_image_ref)"
         local build_ctr="flaggems-build-$$"
         local _username _uid _gid _extra_groups
         _username="$(id -un)"
@@ -420,35 +445,7 @@ fi
 # ── Print container summary ───────────────────────────────────────
 _print_summary() {
     local base_image
-    if [[ "$PLATFORM" == "nvidia" ]]; then
-        local toolkit="${TOOLKIT_VERSION:-cuda13.3}"
-        base_image="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/vllm0.24.0-generic-${toolkit}}:${BASE_IMAGE_TAG}"
-    elif [[ "$PLATFORM" == "hygon" ]]; then
-        local toolkit="${TOOLKIT_VERSION:-dtk26.04}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-hygon-${toolkit}:${BASE_IMAGE_TAG}"
-    elif [[ "$PLATFORM" == "cambricon" ]]; then
-        local toolkit="${TOOLKIT_VERSION:-neuware4.7.2}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-cambricon-${toolkit}:${BASE_IMAGE_TAG}"
-    elif [[ "$PLATFORM" == "ascend" ]]; then
-        local toolkit="${TOOLKIT_VERSION:-cann9.0.0}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-ascend-${toolkit}:${BASE_IMAGE_TAG}"
-    elif [[ "$PLATFORM" == "metax" ]]; then
-        local toolkit="${TOOLKIT_VERSION:-maca3.8.1.3}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-metax-${toolkit}:${BASE_IMAGE_TAG}"
-    elif [[ "$PLATFORM" == "iluvatar" ]]; then
-        local toolkit="${TOOLKIT_VERSION:-corex4.5.0}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-iluvatar-${toolkit}:${BASE_IMAGE_TAG}"
-    elif [[ "$PLATFORM" == "mthreads" ]]; then
-        local toolkit="${TOOLKIT_VERSION:-musa5.2.0}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-mthreads-${toolkit}:${BASE_IMAGE_TAG}"
-    elif [[ "$PLATFORM" == "kunlunxin" ]]; then
-        local toolkit="${TOOLKIT_VERSION:-xre5.37.1}"
-        base_image="${BASE_IMAGE_REGISTRY}/flagos-runtime-kunlunxin-${toolkit}:${BASE_IMAGE_TAG}"
-    elif [[ "$PLATFORM" == "thead" ]]; then
-        base_image="${BASE_IMAGE_NAME}:${BASE_IMAGE_TAG}"
-    else
-        base_image="未知平台"
-    fi
+    base_image="$(base_image_ref)"
 
     echo ""
     echo -e "${CYAN}========================================${NC}"
