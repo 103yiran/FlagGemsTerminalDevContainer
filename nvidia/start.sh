@@ -25,7 +25,22 @@ platform_hardware_args() {
 EOF
 }
 
-# ── Load shared logic and run ─────────────────────────────────────
+# ── Load shared logic ─────────────────────────────────────────────
 # shellcheck source=../common/lib.sh
 source "${REPO_ROOT}/common/lib.sh"
+
+# Wrap _run_container to install Nsight Compute (ncu) once the container is up.
+# Done here rather than at image build time: the build container (run→exec→
+# commit, see _build_dev) has no network on hosts without a configured docker
+# daemon proxy, while the dev container runs with --net=host and always does.
+# See nvidia/install-nsight-compute.sh for the apt-vs-.run install logic and
+# how to pin/upgrade the version (NSIGHT_COMPUTE_VERSION).
+eval "_orig_run_container() $(declare -f _run_container | tail -n +2)"
+_run_container() {
+    _orig_run_container "$@"
+    if container_running; then
+        "${SCRIPT_DIR}/install-nsight-compute.sh" "${CONTAINER_NAME}" "${NSIGHT_COMPUTE_VERSION:-}" || true
+    fi
+}
+
 lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"

@@ -82,6 +82,14 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./nvidia/start.sh
 ```
 
+`start.sh` also installs NVIDIA Nsight Compute (`ncu`) into the container after it starts (idempotent — skipped if already installed). To pin or upgrade the version:
+
+```bash
+NSIGHT_COMPUTE_VERSION=2026.4.0 ./nvidia/start.sh
+```
+
+See `nvidia/install-nsight-compute.sh` for details, including the `.run`-installer fallback for versions not yet in NVIDIA's apt repo.
+
 ### Launch (Hygon)
 
 ```bash
@@ -184,6 +192,7 @@ Examples:
 | Code quality | `pre-commit`, `flake8`, `black`, `isort`, `clang-format` (NVIDIA and T-Head only) |
 | AI tooling | Claude Code CLI (`claude` command) |
 | Utilities | `ripgrep`, `fd`, `gh` (GitHub CLI), passwordless `sudo` |
+| Profiling | NVIDIA Nsight Compute (`ncu`), NVIDIA only — installed by `nvidia/start.sh`, see `nvidia/install-nsight-compute.sh` |
 
 The FlagGems source tree is bind-mounted at `/workspace/FlagGems` by default. The container's `$HOME` is mapped to `~/<container-name>/` on the host, so `.claude` config, zsh history, and other user data persist across container restarts.
 

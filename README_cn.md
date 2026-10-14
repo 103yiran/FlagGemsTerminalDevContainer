@@ -79,6 +79,14 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./nvidia/start.sh
 ```
 
+`start.sh` 会在容器启动后自动安装 NVIDIA Nsight Compute（`ncu`），已安装则自动跳过。指定或升级版本：
+
+```bash
+NSIGHT_COMPUTE_VERSION=2026.4.0 ./nvidia/start.sh
+```
+
+详见 `nvidia/install-nsight-compute.sh`（包含 apt 源中还没有的版本时，回退到 `.run` 安装器的逻辑）。
+
 ### 启动容器（Hygon）
 
 ```bash
@@ -181,6 +189,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 | 代码质量 | `pre-commit`、`flake8`、`black`、`isort`、`clang-format`（仅 NVIDIA 和平头哥） |
 | AI 工具 | Claude Code CLI（`claude` 命令） |
 | 其他 | `ripgrep`、`fd`、`gh`（GitHub CLI）、`sudo`（无密码） |
+| 性能分析 | NVIDIA Nsight Compute（`ncu`），仅 NVIDIA —— 由 `nvidia/start.sh` 安装，详见 `nvidia/install-nsight-compute.sh` |
 
 FlagGems 源码默认挂载到 `/workspace/FlagGems`。容器的 `$HOME` 目录映射到宿主机的 `~/<容器名>/`，`.claude` 配置、zsh 历史等均持久化保存。
 
