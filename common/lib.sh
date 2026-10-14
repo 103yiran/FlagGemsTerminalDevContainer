@@ -291,8 +291,12 @@ _build_dev() {
             "$base_image" \
             sleep infinity
 
-        # Execute every layer from the Dockerfile in order
-        docker exec "$build_ctr" bash -c "
+        # Execute every layer from the Dockerfile in order.
+        # docker exec starts a *new* process and does not inherit the env
+        # `docker run -d` set above — PROXY_ARGS must be passed again here,
+        # or every curl/npm/git step below runs with no proxy at all (DNS
+        # resolution itself fails on hosts with no direct outbound access).
+        docker exec "${PROXY_ARGS[@]}" "$build_ctr" bash -c "
 set -e
 # Layer 1: uv cache dir, /flagos permissions, uv symlink
 mkdir -p /usr/local/share/uv /root/.local/bin /flagos
