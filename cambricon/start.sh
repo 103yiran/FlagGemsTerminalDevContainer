@@ -4,8 +4,10 @@
 # Base image:  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2
 #              (toolkit neuware4.7.2; dev image flaggems-cambricon:dev)
 #
-# Options, host requirements (an SSH key on the host with its public key
-# registered on GitCode) and examples:  ./cambricon/start.sh --help
+# Options and examples:  ./cambricon/start.sh --help
+# Host requirements: export http_proxy/https_proxy if GitHub/GitCode are
+# not directly reachable (common/lib.sh forwards them into the container);
+# an SSH key registered on GitCode is an optional extra fallback.
 # Full documentation:  common/lib.sh, README.md
 #
 

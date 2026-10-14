@@ -45,20 +45,19 @@ FlagGemsTerminalDevContainer/
 
   Additional repos (e.g. `FlagTree`) can be mounted at runtime via `--repo`.
 
-- **SSH key configured on the host and the public key added to [GitCode](https://gitcode.com/).**
-  The container needs GitCode SSH access to install the editor and shell
-  plugins (LazyVim / lazy.nvim and their dependencies are cloned from
-  `gitcode.com` mirrors where available). First verify on the host that key
-  based access works:
-
-  ```bash
-  ssh -T git@gitcode.com    # should print a welcome message, not "Permission denied"
-  ```
-
-  If it fails, add the public key (`~/.ssh/id_ed25519.pub`, `~/.ssh/id_rsa.pub`,
-  or `~/.ssh/id_ecdsa.pub`) to your GitCode account under *Settings → SSH
-  Public Keys*. Without a usable key, plugin installation is skipped and you
-  get a bare nvim / plain zsh instead.
+- **Outbound access to GitHub/GitCode**, needed to install the editor and
+  shell plugins (LazyVim / lazy.nvim and their dependencies are cloned over
+  HTTPS, preferring `gitcode.com` mirrors with a `github.com` fallback).
+  - If the host reaches GitHub/GitCode directly, nothing further is needed.
+  - If the host only has an HTTP(S) proxy (e.g. `http_proxy`/`https_proxy`
+    exported from `~/.bashrc`), that's enough — `start.sh` forwards those
+    variables into the container automatically.
+  - An SSH key on the host with its public half added to
+    [GitCode](https://gitcode.com/) is an optional extra fallback, tried only
+    if both HTTPS attempts fail. Verify it with `ssh -T git@gitcode.com` if
+    you want to rely on it.
+  - If none of the above gets through, plugin installation is skipped and you
+    get a bare nvim / plain zsh instead.
 
 - NVIDIA platform: NVIDIA Container Toolkit installed on the host
 - Hygon platform: `/dev/kfd`, `/dev/dri` devices available on the host and `/opt/hyhal` mounted
@@ -196,23 +195,35 @@ Examples:
 
 The FlagGems source tree is bind-mounted at `/workspace/FlagGems` by default. The container's `$HOME` is mapped to `~/<container-name>/` on the host, so `.claude` config, zsh history, and other user data persist across container restarts.
 
-## SSH configuration
+## Network configuration
 
-`setup.sh` needs SSH access to clone LazyVim, lazy.nvim, and the plugin set.
-Plugins are fetched from [GitCode](https://gitcode.com/) mirrors where they
-exist, with a direct fall back to GitHub SSH — so **the host must have an SSH
-key whose public half is registered on your GitCode account**. Verify with:
+`setup.sh` needs outbound access to clone LazyVim, lazy.nvim, and the plugin
+set. It clones over HTTPS by default — [GitCode](https://gitcode.com/)
+mirrors first, falling back to `github.com` directly — so plain internet
+access or an HTTP(S) proxy is enough; no SSH key is required.
+
+**Host behind a proxy (no direct GitHub/GitCode access):** export
+`http_proxy`/`https_proxy` before running `start.sh` (e.g. from `~/.bashrc`).
+`common/lib.sh` detects them and forwards them into both the image build and
+the running container automatically — no other configuration needed.
+
+**Optional SSH fallback:** if HTTPS fails (both the GitCode mirror and the
+GitHub fallback), `setup.sh` tries SSH as a last resort, provided the host
+has a key whose public half is registered on your GitCode account. Verify
+with:
 
 ```bash
 ssh -T git@gitcode.com
 ```
 
-Then either forwarding mode works:
+Either SSH forwarding mode works for this fallback:
 
 - **Default (mount `~/.ssh`)**: the host's `~/.ssh` directory is mounted read-only into the container.
 - **Agent forwarding (`--ssh-agent`)**: the private key never enters the container; only `SSH_AUTH_SOCK` is forwarded. Requires `ssh-agent` to be running on the host with keys loaded via `ssh-add`.
 
-If no SSH key is available, `setup.sh` skips the nvim/zsh plugin installation with a warning — the rest of the environment still works normally.
+If none of HTTPS, proxy, or SSH gets through, `setup.sh` skips the nvim/zsh
+plugin installation with a warning — the rest of the environment still works
+normally.
 
 ## Container management
 

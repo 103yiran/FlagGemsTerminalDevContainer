@@ -2,12 +2,14 @@
 # setup.sh — run once inside the container to configure zsh and nvim.
 # Idempotent: safe to run multiple times.
 #
-# Requires SSH access for cloning the nvim/zsh plugins.  The host must have
-# an SSH key configured and its public key registered on GitCode
-# (https://gitcode.com/) — plugins come from gitcode gh_mirrors where
-# available, with a direct GitHub SSH fallback.  If no key or agent key is
-# available the plugin steps are skipped with a warning rather than aborting
-# the whole script.
+# Clones the nvim/zsh plugins over HTTPS by default (gitcode.com mirrors,
+# falling back to github.com directly), so hosts that only have an HTTP(S)
+# proxy for outbound access — and no usable SSH egress — still work; just
+# export http_proxy/https_proxy (common/lib.sh forwards them into the
+# container automatically). If the host *does* have an SSH key registered on
+# GitCode, it is used as an extra fallback after both HTTPS attempts fail.
+# If neither HTTPS nor SSH gets through, the plugin steps are skipped with a
+# warning rather than aborting the whole script.
 set -uo pipefail
 
 # ------------------------------------------------------------------
@@ -34,8 +36,9 @@ EOF
     fi
 }
 
-# Returns 0 if SSH is usable (agent with key, or key file present).
-# Sets GIT_SSH_COMMAND to use the key file directly when no agent.
+# Returns 0 if SSH is usable (agent with key, or key file present) and sets
+# GIT_SSH_COMMAND to use the key file directly when no agent. Only called as
+# a fallback after HTTPS clone attempts fail — see clone_repo() below.
 setup_ssh_for_git() {
     # Prefer agent
     if [[ -n "${SSH_AUTH_SOCK:-}" ]] && ssh-add -l &>/dev/null; then
@@ -53,16 +56,39 @@ setup_ssh_for_git() {
     return 1
 }
 
-# ------------------------------------------------------------------
-# 0. GitHub known_hosts
-# ------------------------------------------------------------------
-ensure_github_known_hosts
+# Clone a repo trying, in order: HTTPS gitcode mirror, HTTPS GitHub direct,
+# then (only if an SSH key/agent is available) the SSH form of both. Hosts
+# with only an HTTP(S) proxy and no SSH egress still succeed on the first two
+# attempts; hosts with SSH but no proxy fall through to the SSH attempts.
+#   $1: gitcode HTTPS URL (or "" to skip)
+#   $2: github HTTPS URL
+#   $3: destination path
+#   $4: extra git-clone args (e.g. "--depth=1"), word-split
+clone_repo() {
+    local gitcode_https="$1" github_https="$2" dest="$3" extra="${4:-}"
+    local -a args=()
+    [[ -n "$extra" ]] && read -ra args <<< "$extra"
+
+    if [[ -n "$gitcode_https" ]] && git clone "${args[@]}" "$gitcode_https" "$dest" 2>/dev/null; then
+        return 0
+    fi
+    if git clone "${args[@]}" "$github_https" "$dest" 2>/dev/null; then
+        return 0
+    fi
+    if setup_ssh_for_git; then
+        local gitcode_ssh="" github_ssh=""
+        [[ -n "$gitcode_https" ]] && gitcode_ssh="git@gitcode.com:${gitcode_https#https://gitcode.com/}"
+        github_ssh="git@github.com:${github_https#https://github.com/}"
+        [[ -n "$gitcode_ssh" ]] && git clone "${args[@]}" "$gitcode_ssh" "$dest" 2>/dev/null && return 0
+        git clone "${args[@]}" "$github_ssh" "$dest" 2>/dev/null && return 0
+    fi
+    return 1
+}
 
 # ------------------------------------------------------------------
-# 1. git: rewrite https://github.com/ to SSH by default
+# 1. GitHub known_hosts (only exercised if the SSH fallback above is used)
 # ------------------------------------------------------------------
-git config --global url."git@github.com:".insteadOf "https://github.com/"
-info "git configured: https://github.com/ → git@github.com:"
+ensure_github_known_hosts
 
 # ------------------------------------------------------------------
 # 2. zsh: oh-my-zsh + plugins (via Gitee mirror, no GitHub needed)
@@ -108,32 +134,36 @@ sed -i 's/^plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlightin
 # 3. nvim: LazyVim starter config + plugin sync
 # ------------------------------------------------------------------
 if [[ ! -d "${HOME}/.config/nvim" ]]; then
-    if ! setup_ssh_for_git; then
-        warn "No SSH key or agent found — skipping LazyVim install."
-        warn "To install later: ensure ~/.ssh/id_ed25519 exists and re-run setup.sh."
-    else
-        info "Installing LazyVim starter config..."
-        # Clone the starter *template* (LazyVim/starter), not the plugin
-        # repo (LazyVim/LazyVim).  The plugin repo ships a hard-coded check
-        # that prints "Do not use this repository directly / Press any key to
-        # exit" and blocks — causing nvim --headless to hang forever.
-        if git clone --depth=1 git@gitcode.com:gh_mirrors/sta/starter.git \
-                "${HOME}/.config/nvim" \
-            || git clone --depth=1 https://github.com/LazyVim/starter.git \
-                "${HOME}/.config/nvim"; then
-            rm -rf "${HOME}/.config/nvim/.git"
+    info "Installing LazyVim starter config..."
+    # Clone the starter *template* (LazyVim/starter), not the plugin
+    # repo (LazyVim/LazyVim).  The plugin repo ships a hard-coded check
+    # that prints "Do not use this repository directly / Press any key to
+    # exit" and blocks — causing nvim --headless to hang forever.
+    # Tries HTTPS gitcode mirror, then HTTPS GitHub, then (if an SSH key is
+    # present) the SSH form of either — see clone_repo() above.
+    if clone_repo "https://gitcode.com/gh_mirrors/sta/starter.git" \
+            "https://github.com/LazyVim/starter.git" \
+            "${HOME}/.config/nvim" "--depth=1"; then
+        rm -rf "${HOME}/.config/nvim/.git"
 
-            # ── Patch: lua/config/lazy.lua with gitcode mirrors ───────────
-            # Overwrite lua/config/lazy.lua to:
-            # 1. Bootstrap lazy.nvim from gitcode GitHub_Trending/la/lazy.nvim
-            # 2. Hook Plugin.init to rewrite each plugin's GitHub URL to gitcode
-            #    Pattern: GitHub_Trending/<repo-name[0:2]>/<repo-name>
-            cat > "${HOME}/.config/nvim/lua/config/lazy.lua" << 'LUA'
+        # ── Patch: lua/config/lazy.lua with gitcode mirrors ───────────
+        # Overwrite lua/config/lazy.lua to:
+        # 1. Bootstrap lazy.nvim from gitcode gh_mirrors/la/lazy.nvim
+        # 2. Hook Plugin.init to rewrite each plugin's GitHub URL to gitcode
+        #    Pattern: gh_mirrors/<repo-name[0:2]>/<repo-name>
+        cat > "${HOME}/.config/nvim/lua/config/lazy.lua" << 'LUA'
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
-  local lazyrepo = "git@gitcode.com:gh_mirrors/la/lazy.nvim.git"
+  -- HTTPS, not SSH: this clone runs long before any SSH key/agent setup
+  -- could apply, and HTTPS is what works through a plain HTTP(S) proxy.
+  local lazyrepo = "https://gitcode.com/gh_mirrors/la/lazy.nvim.git"
   local out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable", lazyrepo, lazypath })
+  if vim.v.shell_error ~= 0 then
+    -- gitcode mirror unreachable — retry straight from GitHub over HTTPS.
+    out = vim.fn.system({ "git", "clone", "--filter=blob:none", "--branch=stable",
+      "https://github.com/folke/lazy.nvim.git", lazypath })
+  end
   if vim.v.shell_error ~= 0 then
     vim.api.nvim_echo({
       { "Failed to clone lazy.nvim:\n", "ErrorMsg" },
@@ -151,18 +181,18 @@ vim.opt.rtp:prepend(lazypath)
 -- By setting url_format to a table whose :format() method we intercept every
 -- clone and redirect it to gitcode gh_mirrors where available.
 --
--- gitcode gh_mirrors layout: git@gitcode.com:gh_mirrors/<repo[0:2]>/<repo>.git
--- e.g. "folke/snacks.nvim" -> git@gitcode.com:gh_mirrors/sn/snacks.nvim.git
+-- gitcode gh_mirrors layout: https://gitcode.com/gh_mirrors/<repo[0:2]>/<repo>.git
+-- e.g. "folke/snacks.nvim" -> https://gitcode.com/gh_mirrors/sn/snacks.nvim.git
 --
--- Owners whose repos are largely absent from gh_mirrors (e.g. echasnovski/mini.*)
--- fall back to GitHub SSH directly — connectivity to github.com via SSH is
--- available in this environment.
+-- HTTPS rather than SSH: this must work through a plain HTTP(S) proxy on
+-- hosts with no SSH egress at all. Owners whose repos are largely absent
+-- from gh_mirrors (e.g. echasnovski/mini.*) fall back to GitHub over HTTPS.
 --
 -- This works because vim.tbl_deep_extend preserves metatables, so lazy.nvim's
 -- Config.options.git.url_format ends up being this table, and the subsequent
 -- url_format:format(plugin_spec) call hits our custom method.
 
--- Owners that should go directly to GitHub SSH (not in gitcode gh_mirrors).
+-- Owners that should go directly to GitHub (not in gitcode gh_mirrors).
 -- echasnovski: splits mini.nvim into per-module repos; most absent from gh_mirrors.
 -- nvim-mini: LazyVim uses this GitHub org alias for the same echasnovski mini.* repos.
 local github_direct_owners = {
@@ -179,15 +209,15 @@ local gitcode_url_format = setmetatable({}, {
         -- Fallback: no slash found, use s as repo name
         repo = s:gsub("%.git$", "")
         local prefix = repo:sub(1, 2):lower()
-        return ("git@gitcode.com:gh_mirrors/%s/%s.git"):format(prefix, repo)
+        return ("https://gitcode.com/gh_mirrors/%s/%s.git"):format(prefix, repo)
       end
       repo = repo:gsub("%.git$", "")
-      -- Route known-missing owners directly to GitHub SSH
+      -- Route known-missing owners directly to GitHub
       if github_direct_owners[owner] then
-        return ("git@github.com:%s/%s.git"):format(owner, repo)
+        return ("https://github.com/%s/%s.git"):format(owner, repo)
       end
       local prefix = repo:sub(1, 2):lower()
-      return ("git@gitcode.com:gh_mirrors/%s/%s.git"):format(prefix, repo)
+      return ("https://gitcode.com/gh_mirrors/%s/%s.git"):format(prefix, repo)
     end,
   },
 })
@@ -229,9 +259,9 @@ require("lazy").setup({
 })
 LUA
 
-            # ── Disable plugins that require the tree-sitter CLI binary ───
-            mkdir -p "${HOME}/.config/nvim/lua/plugins"
-            cat > "${HOME}/.config/nvim/lua/plugins/no-treesitter-cli.lua" << 'LUA'
+        # ── Disable plugins that require the tree-sitter CLI binary ───
+        mkdir -p "${HOME}/.config/nvim/lua/plugins"
+        cat > "${HOME}/.config/nvim/lua/plugins/no-treesitter-cli.lua" << 'LUA'
 -- Disable tree-sitter features that require the CLI binary.
 return {
   -- Disable nvim-treesitter-playground (requires tree-sitter CLI)
@@ -247,40 +277,37 @@ return {
 }
 LUA
 
-            info "Syncing LazyVim plugins (this may take a while)..."
+        info "Syncing LazyVim plugins (this may take a while)..."
 
-            # Pre-check: ensure .local/share/nvim has write permissions and space
-            mkdir -p "${HOME}/.local/share/nvim/lazy"
-            touch "${HOME}/.local/share/nvim/.writetest" 2>/dev/null \
-                && rm -f "${HOME}/.local/share/nvim/.writetest" \
-                || { warn "~/.local/share/nvim is not writable — plugin sync will fail"; }
+        # Pre-check: ensure .local/share/nvim has write permissions and space
+        mkdir -p "${HOME}/.local/share/nvim/lazy"
+        touch "${HOME}/.local/share/nvim/.writetest" 2>/dev/null \
+            && rm -f "${HOME}/.local/share/nvim/.writetest" \
+            || { warn "~/.local/share/nvim is not writable — plugin sync will fail"; }
 
-            timeout 300 nvim --headless "+Lazy! sync" +qa \
-                || warn "Lazy sync exited non-zero — some plugins may be missing"
+        timeout 300 nvim --headless "+Lazy! sync" +qa \
+            || warn "Lazy sync exited non-zero — some plugins may be missing"
 
-            # Post-sync: recover any plugin whose .git dir exists but working tree
-            # is empty.  This happens when git clone's partial-clone (--filter=blob:none)
-            # succeeds in transferring objects but fails during checkout — leaving only
-            # the .git directory.  `git checkout -f HEAD` re-writes the working tree
-            # from the already-present object database without re-fetching anything.
-            local _lazy_dir="${HOME}/.local/share/nvim/lazy"
-            for _plugin_dir in "${_lazy_dir}"/*/; do
-                [[ -d "${_plugin_dir}.git" ]] || continue
-                # Count non-.git files; if zero, checkout is incomplete
-                local _nfiles
-                _nfiles=$(find "${_plugin_dir}" -mindepth 1 -not -path "*/.git/*" | wc -l)
-                if [[ "${_nfiles}" -eq 0 ]]; then
-                    local _pname
-                    _pname=$(basename "${_plugin_dir}")
-                    warn "${_pname}: checkout incomplete — recovering with git checkout -f HEAD"
-                    git -C "${_plugin_dir}" checkout -f HEAD 2>&1 \
-                        && info "${_pname}: recovered ($(find "${_plugin_dir}" -not -path "*/.git/*" -mindepth 1 | wc -l) files)" \
-                        || warn "${_pname}: recovery failed"
-                fi
-            done
-        else
-            warn "LazyVim clone failed — skipping nvim setup"
-        fi
+        # Post-sync: recover any plugin whose .git dir exists but working tree
+        # is empty.  This happens when git clone's partial-clone (--filter=blob:none)
+        # succeeds in transferring objects but fails during checkout — leaving only
+        # the .git directory.  `git checkout -f HEAD` re-writes the working tree
+        # from the already-present object database without re-fetching anything.
+        _lazy_dir="${HOME}/.local/share/nvim/lazy"
+        for _plugin_dir in "${_lazy_dir}"/*/; do
+            [[ -d "${_plugin_dir}.git" ]] || continue
+            # Count non-.git files; if zero, checkout is incomplete
+            _nfiles=$(find "${_plugin_dir}" -mindepth 1 -not -path "*/.git/*" | wc -l)
+            if [[ "${_nfiles}" -eq 0 ]]; then
+                _pname=$(basename "${_plugin_dir}")
+                warn "${_pname}: checkout incomplete — recovering with git checkout -f HEAD"
+                git -C "${_plugin_dir}" checkout -f HEAD 2>&1 \
+                    && info "${_pname}: recovered ($(find "${_plugin_dir}" -not -path "*/.git/*" -mindepth 1 | wc -l) files)" \
+                    || warn "${_pname}: recovery failed"
+            fi
+        done
+    else
+        warn "LazyVim clone failed — skipping nvim setup"
     fi
 else
     info "LazyVim config already present at ~/.config/nvim — skipping clone"

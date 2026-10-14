@@ -4,8 +4,10 @@
 # Base image:  harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-13.3:2.2.0-0.3.0
 #              (toolkit cuda13.3; dev image flaggems-nvidia:dev)
 #
-# Options, host requirements (an SSH key on the host with its public key
-# registered on GitCode) and examples:  ./nvidia/start.sh --help
+# Options and examples:  ./nvidia/start.sh --help
+# Host requirements: export http_proxy/https_proxy if GitHub/GitCode are
+# not directly reachable (common/lib.sh forwards them into the container);
+# an SSH key registered on GitCode is an optional extra fallback.
 # Full documentation:  common/lib.sh, README.md
 #
 

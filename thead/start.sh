@@ -4,8 +4,10 @@
 # Base image:  pkg.flytiger-eco.com/docker_release/pytorch:v2.1.1-2.10.0-ubuntu24.04-cuda13.0-py312
 #              (dev image flaggems-thead:dev)
 #
-# Options, host requirements (an SSH key on the host with its public key
-# registered on GitCode) and examples:  ./thead/start.sh --help
+# Options and examples:  ./thead/start.sh --help
+# Host requirements: export http_proxy/https_proxy if GitHub/GitCode are
+# not directly reachable (common/lib.sh forwards them into the container);
+# an SSH key registered on GitCode is an optional extra fallback.
 # Full documentation:  common/lib.sh, README.md
 #
 

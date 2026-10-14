@@ -45,17 +45,17 @@ FlagGemsTerminalDevContainer/
 
   其他仓库（如 `FlagTree`）可通过 `--repo` 参数在运行时挂载。
 
-- **宿主机需要已配置 SSH 密钥，并将其公钥添加到 [GitCode](https://gitcode.com/)。**
-  容器内需要通过 GitCode SSH 访问来安装编辑器和 shell 插件（LazyVim /
-  lazy.nvim 及其依赖会优先从 `gitcode.com` 镜像克隆）。先在宿主机上确认密钥可用：
-
-  ```bash
-  ssh -T git@gitcode.com    # 应打印欢迎信息，而不是 "Permission denied"
-  ```
-
-  如果失败，请将公钥（`~/.ssh/id_ed25519.pub`、`~/.ssh/id_rsa.pub` 或
-  `~/.ssh/id_ecdsa.pub`）添加到 GitCode 账号的 *设置 → SSH 公钥* 中。没有可用密钥时，
-  插件安装会被跳过，容器内只有一个裸 nvim 和普通 zsh。
+- **需要能访问 GitHub/GitCode**，用于安装编辑器和 shell 插件（LazyVim /
+  lazy.nvim 及其依赖默认通过 HTTPS 克隆，优先走 `gitcode.com` 镜像，失败后
+  回退到 `github.com`）。
+  - 若宿主机可直连 GitHub/GitCode，无需额外配置。
+  - 若宿主机只有 HTTP(S) 代理（例如在 `~/.bashrc` 中 export 了
+    `http_proxy`/`https_proxy`），同样够用 —— `start.sh` 会自动将这些
+    环境变量转发进容器。
+  - 宿主机配置 SSH 密钥并将公钥添加到 [GitCode](https://gitcode.com/)
+    是可选的额外兜底，仅在两次 HTTPS 尝试都失败时才会用到。如需依赖它，
+    可先验证: `ssh -T git@gitcode.com`
+  - 以上途径都不通时，插件安装会被跳过，容器内只有一个裸 nvim 和普通 zsh。
 
 - NVIDIA 平台：宿主机已安装 NVIDIA Container Toolkit
 - Hygon 平台：宿主机已挂载 `/dev/kfd`、`/dev/dri` 等设备，`/opt/hyhal` 已就位
@@ -193,22 +193,31 @@ NSIGHT_COMPUTE_VERSION=2026.4.0 ./nvidia/start.sh
 
 FlagGems 源码默认挂载到 `/workspace/FlagGems`。容器的 `$HOME` 目录映射到宿主机的 `~/<容器名>/`，`.claude` 配置、zsh 历史等均持久化保存。
 
-## SSH 配置
+## 网络配置
 
-`setup.sh` 需要通过 SSH 克隆 LazyVim、lazy.nvim 及插件集。插件优先从
-[GitCode](https://gitcode.com/) 镜像获取，镜像缺失时回退到 GitHub SSH，
-因此**宿主机必须已配置 SSH 密钥，且公钥已添加到 GitCode 账号**。可用以下命令验证：
+`setup.sh` 需要出网访问来克隆 LazyVim、lazy.nvim 及插件集。默认通过 HTTPS
+克隆 —— 优先 [GitCode](https://gitcode.com/) 镜像，失败后回退到
+`github.com` 直连 —— 因此只要能直连互联网，或者有 HTTP(S) 代理即可，
+**不要求配置 SSH 密钥**。
+
+**宿主机在代理后面（无法直连 GitHub/GitCode）：** 在运行 `start.sh` 之前
+export `http_proxy`/`https_proxy`（例如写入 `~/.bashrc`）。`common/lib.sh`
+会自动检测并将其转发进镜像构建过程和运行中的容器，无需其他配置。
+
+**可选的 SSH 兜底：** 如果两次 HTTPS 尝试（GitCode 镜像和 GitHub 直连）都
+失败，`setup.sh` 会尝试 SSH 作为最后手段，前提是宿主机已配置 SSH 密钥且
+公钥已添加到 GitCode 账号。可用以下命令验证：
 
 ```bash
 ssh -T git@gitcode.com
 ```
 
-两种转发方式任选其一：
+该兜底支持两种转发方式：
 
 - **默认模式（挂载 `~/.ssh`）**：宿主机的 `~/.ssh` 以只读方式挂载进容器，密钥作为文件存在。
 - **Agent 模式（`--ssh-agent`）**：私钥不进入容器，只转发 `SSH_AUTH_SOCK`，需要宿主机已运行 `ssh-agent` 并通过 `ssh-add` 加载密钥。
 
-如果没有 SSH 密钥，`setup.sh` 会跳过 nvim/zsh 插件安装并打印警告，其余环境正常可用。
+如果 HTTPS、代理、SSH 都不通，`setup.sh` 会跳过 nvim/zsh 插件安装并打印警告，其余环境正常可用。
 
 ## 常用容器管理命令
 

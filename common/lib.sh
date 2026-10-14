@@ -64,6 +64,23 @@ EXEC_COMMAND=(zsh)
 SSH_MODE="mount"   # "mount" | "agent"
 REPO_MOUNTS=()
 
+# ── Proxy passthrough ───────────────────────────────────────────────
+# Hosts without direct access to GitHub/GitCode (and sometimes Aliyun/npmmirror
+# too) typically export http_proxy/https_proxy/no_proxy from ~/.bashrc instead.
+# That env lives in the host shell only — docker run/exec never inherit it
+# automatically — so collect whichever of these are set and build a reusable
+# `-e` array other functions can splice into their docker invocations.
+_collect_proxy_args() {
+    PROXY_ARGS=()
+    local _var
+    for _var in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY; do
+        if [[ -n "${!_var:-}" ]]; then
+            PROXY_ARGS+=(-e "${_var}=${!_var}")
+        fi
+    done
+}
+_collect_proxy_args
+
 # ── Colors ────────────────────────────────────────────────────────
 readonly RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m' CYAN='\033[0;36m' NC='\033[0m'
@@ -100,12 +117,15 @@ show_help() {
 当前平台: ${PLATFORM}
 base 镜像: $(base_image_ref)
 
-SSH 说明:
-    宿主机需已配置 SSH 密钥，且公钥已添加到 GitCode 账号（用于克隆 nvim/zsh 插件）。
-    可先验证: ssh -T git@gitcode.com
-    默认将宿主机 ~/.ssh 以只读方式挂载到容器内，密钥作为文件存在。
+网络说明:
+    nvim/zsh 插件默认通过 HTTPS 克隆（GitCode 镜像优先，GitHub 兜底）。
+    如宿主机无法直连 GitHub/GitCode，请在运行本脚本前 export
+    http_proxy/https_proxy（例如写入 ~/.bashrc），本脚本会自动将其转发进容器。
+    SSH 仅作为可选的额外兜底：若宿主机已配置 SSH 密钥且公钥已添加到
+    GitCode 账号，可先验证 ssh -T git@gitcode.com；
     --ssh-agent 模式下私钥不进入容器，仅转发 SSH_AUTH_SOCK socket，
-    需要宿主机已运行 ssh-agent 并通过 ssh-add 加载密钥。
+    需要宿主机已运行 ssh-agent 并通过 ssh-add 加载密钥；
+    默认（不加 --ssh-agent）则将宿主机 ~/.ssh 以只读方式挂载到容器内。
 
 示例:
     start.sh                                # 默认容器名，挂载 FlagGems
@@ -258,10 +278,15 @@ _build_dev() {
         # Ensure the build container is removed even if the build fails
         trap "docker rm -f '$build_ctr' 2>/dev/null || true" EXIT
 
-        # Start a throw-away container with seccomp=unconfined so RUN commands work
+        # Start a throw-away container with seccomp=unconfined so RUN commands work.
+        # PROXY_ARGS forwards the host's http_proxy/https_proxy/no_proxy (if any)
+        # so steps that reach GitHub/GitCode (not covered by the Aliyun/npmmirror
+        # mirrors already baked into the layers below) still work on hosts with
+        # no direct outbound access.
         docker run -d \
             --name "$build_ctr" \
             --security-opt seccomp=unconfined \
+            "${PROXY_ARGS[@]}" \
             "${_platform_build_args[@]}" \
             "$base_image" \
             sleep infinity
@@ -491,6 +516,10 @@ _run_container() {
 
     if ! container_exists; then
         print_step "创建并后台启动容器: ${CONTAINER_NAME}"
+        # --net=host shares the host's network namespace, but *not* its env —
+        # PROXY_ARGS re-injects http_proxy/https_proxy/no_proxy so git clones
+        # of GitHub/GitCode (setup.sh, lazy.nvim plugin sync) can reach out on
+        # hosts where SSH egress is blocked and only an HTTP(S) proxy works.
         docker run -d \
             --name "${CONTAINER_NAME}" \
             "${hw_args[@]}" \
@@ -504,6 +533,7 @@ _run_container() {
             "${REPO_MOUNT_ARGS[@]}" \
             -v "${container_home_host}":/home/"$(id -un)" \
             "${SSH_ARGS[@]}" \
+            "${PROXY_ARGS[@]}" \
             -e PIP_USER=0 \
             -e LANG=C.UTF-8 \
             -e LC_ALL=C.UTF-8 \
@@ -512,9 +542,24 @@ _run_container() {
             "${DEV_IMAGE}" infinity
         print_success "容器已创建并在后台运行"
 
+        # Persist the proxy vars into /etc/environment so docker exec sessions
+        # started later (plain `docker exec -it ... zsh`, not through this
+        # script) still pick them up — docker exec does not inherit vars set
+        # only at `docker run` time unless the process environment carries them.
+        if [[ ${#PROXY_ARGS[@]} -gt 0 ]]; then
+            local _proxy_env=""
+            local _var
+            for _var in http_proxy https_proxy no_proxy HTTP_PROXY HTTPS_PROXY NO_PROXY; do
+                if [[ -n "${!_var:-}" ]]; then
+                    _proxy_env+="${_var}=${!_var}"$'\n'
+                fi
+            done
+            printf '%s' "$_proxy_env" | docker exec -i "${CONTAINER_NAME}" tee -a /etc/environment > /dev/null
+        fi
+
         print_step "运行 setup.sh 初始化容器环境..."
         docker cp "${repo_root}/common/setup.sh" "${CONTAINER_NAME}:/tmp/setup.sh"
-        docker exec --user "$(id -un)" "${CONTAINER_NAME}" zsh /tmp/setup.sh
+        docker exec --user "$(id -un)" "${PROXY_ARGS[@]}" "${CONTAINER_NAME}" zsh /tmp/setup.sh
         docker exec "${CONTAINER_NAME}" rm /tmp/setup.sh
         print_success "setup.sh 执行完毕"
 
@@ -564,6 +609,7 @@ lib_main() {
         -e LC_ALL=C.UTF-8 \
         -e TERM="${TERM:-xterm-256color}" \
         -e COLORTERM="${COLORTERM:-truecolor}" \
+        "${PROXY_ARGS[@]}" \
         -w "${WORKSPACE_DIR}" "${CONTAINER_NAME}" "${EXEC_COMMAND[@]}"
 
     echo ""

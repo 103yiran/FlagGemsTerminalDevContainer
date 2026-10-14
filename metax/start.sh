@@ -4,8 +4,10 @@
 # Base image:  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2
 #              (toolkit maca3.8.1.3; dev image flaggems-metax:dev)
 #
-# Options, host requirements (an SSH key on the host with its public key
-# registered on GitCode) and examples:  ./metax/start.sh --help
+# Options and examples:  ./metax/start.sh --help
+# Host requirements: export http_proxy/https_proxy if GitHub/GitCode are
+# not directly reachable (common/lib.sh forwards them into the container);
+# an SSH key registered on GitCode is an optional extra fallback.
 # Full documentation:  common/lib.sh, README.md
 #
 
