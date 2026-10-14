@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # ascend/start.sh — launch the FlagGems Ascend development container.
 #
-# Base image:  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.1.2
+# Base image:  harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.2.0
 #              (toolkit cann9.0.0; dev image flaggems-ascend:dev)
+#
+# For Ascend 910C hardware, use ascend-910c/start.sh instead — it shares all
+# the platform logic here but points at the 910C-specific base image.
 #
 # Options and examples:  ./ascend/start.sh --help
 # Host requirements: export http_proxy/https_proxy if GitHub/GitCode are
@@ -18,6 +21,7 @@ readonly FLAGGEMS_ROOT="$(cd "$SCRIPT_DIR/../../FlagGems" && pwd)"
 # ── Platform identity ─────────────────────────────────────────────
 PLATFORM="ascend"
 TOOLKIT_VERSION="${TOOLKIT_VERSION:-cann9.0.0}"
+BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.2.0}"
 
 # ── Platform hardware flags ───────────────────────────────────────
 platform_hardware_args() {

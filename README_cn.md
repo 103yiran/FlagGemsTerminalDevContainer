@@ -19,7 +19,9 @@ FlagGemsTerminalDevContainer/
 ├── cambricon/
 │   └── start.sh          # Cambricon 启动脚本，source common/lib.sh
 ├── ascend/
-│   └── start.sh          # Ascend 启动脚本，source common/lib.sh
+│   └── start.sh          # Ascend（910B）启动脚本，source common/lib.sh
+├── ascend-910c/
+│   └── start.sh          # Ascend 910C 启动脚本，平台逻辑相同，base 镜像为 910C 专用版本
 ├── metax/
 │   └── start.sh          # Metax 启动脚本，source common/lib.sh
 ├── iluvatar/
@@ -60,7 +62,7 @@ FlagGemsTerminalDevContainer/
 - NVIDIA 平台：宿主机已安装 NVIDIA Container Toolkit
 - Hygon 平台：宿主机已挂载 `/dev/kfd`、`/dev/dri` 等设备，`/opt/hyhal` 已就位
 - Cambricon 平台：宿主机已挂载 `/dev/cambricon_dev*` 及 `/dev/cambricon_ctl` 设备
-- Ascend 平台：宿主机已挂载 `/dev/davinci0`、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` 设备，且 `/usr/local/Ascend/driver`、`/usr/local/dcmi`、`/usr/local/sbin/npu-smi` 已就位
+- Ascend 平台（`ascend/` 与 `ascend-910c/` 均适用）：宿主机已挂载 `/dev/davinci0`、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` 设备，且 `/usr/local/Ascend/driver`、`/usr/local/dcmi`、`/usr/local/sbin/npu-smi` 已就位
 - Metax 平台：宿主机已挂载 `/dev/mxcd` 和 `/dev/dri` 设备，用户需在 `video` 组中
 - Iluvatar 平台：宿主机已挂载 `/dev/iluvatar0` 至 `/dev/iluvatar15` 设备，且 `/usr/local/corex` 已就位
 - 摩尔线程（Moore Threads）平台：宿主机已挂载 `/dev/mtgpu.0` 至 `/dev/mtgpu.7` 及 `/dev/dri` 设备，`/usr/bin/mthreads-gmi` 已就位，用户需在 `render` 和 `video` 组中
@@ -104,6 +106,18 @@ NSIGHT_COMPUTE_VERSION=2026.4.0 ./nvidia/start.sh
 ```bash
 ./ascend/start.sh
 ```
+
+### 启动容器（Ascend 910C）
+
+```bash
+./ascend-910c/start.sh
+```
+
+平台配置（设备挂载、驱动烘焙、CANN 环境变量注入）与 `ascend/start.sh` 完全一致，
+区别仅在于使用 910C 专用的 base 镜像（`flagos-base-ascend-cann9.0.0-910c`），
+而非 `ascend/start.sh` 使用的 `flagos-runtime-ascend-cann9.0.0`。dev 镜像和
+容器名也各自独立（`flaggems-ascend-910c:dev`、
+`flaggems-ascend-910c-dev-<用户名>`），不会与普通 Ascend 容器冲突。
 
 ### 启动容器（Metax）
 
