@@ -385,15 +385,27 @@ else
     _nvim_installed=false
 
     # NJU mirror tarball (LatestRelease, no FUSE required, architecture-aware)
-    # Use -w to check HTTP status; avoid `file` command which may not be present.
+    # --max-time bounds each attempt: on a flaky proxy the TCP connection can
+    # stay ESTABLISHED with zero bytes moving (seen in practice), which
+    # --connect-timeout alone does not catch since the connect did succeed.
+    # Retry a few times with a short cooldown instead of hanging forever.
     _nvim_darch=\$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x86_64/')
     _nvim_filename=\"nvim-linux-\${_nvim_darch}.tar.gz\"
     _nvim_url=\"https://mirror.nju.edu.cn/github-release/neovim/neovim/LatestRelease/\${_nvim_filename}\"
     echo \"Trying: \${_nvim_url}\"
-    rm -f /tmp/nvim.tar.gz
-    _http_code=\$(curl -fsSL --retry 2 --connect-timeout 15 \
-        -w '%{http_code}' \"\${_nvim_url}\" -o /tmp/nvim.tar.gz 2>/dev/null || true)
-    if [ \"\${_http_code}\" = '200' ] && [ -s /tmp/nvim.tar.gz ]; then
+    _nvim_fetched=false
+    for _nvim_try in 1 2 3; do
+        rm -f /tmp/nvim.tar.gz
+        if timeout 60 curl -fsSL --connect-timeout 15 --max-time 60 \
+            \"\${_nvim_url}\" -o /tmp/nvim.tar.gz \
+            && [ -s /tmp/nvim.tar.gz ]; then
+            _nvim_fetched=true
+            break
+        fi
+        echo \"nvim download attempt \${_nvim_try}/3 failed or stalled, retrying...\"
+        sleep 5
+    done
+    if \$_nvim_fetched; then
         tar -xzf /tmp/nvim.tar.gz -C /usr/local --strip-components=1
         rm -f /tmp/nvim.tar.gz
         if nvim --version 2>/dev/null | head -1 | grep -qE 'NVIM v(0\.(1[1-9]|[2-9][0-9])|[1-9][0-9])'; then
@@ -404,7 +416,7 @@ else
         fi
     else
         rm -f /tmp/nvim.tar.gz
-        echo \"NJU tarball download failed (HTTP \${_http_code})\"
+        echo 'NJU tarball download failed after 3 attempts'
     fi
 
     if [ \"\$_nvim_installed\" = false ]; then
@@ -414,14 +426,55 @@ fi
 
 # Layer 5: Node.js + Claude Code CLI
 # node release naming: arm64 stays arm64, x86_64 becomes x64.
+# Same stalled-proxy risk as the nvim download above: bound each attempt
+# with --max-time/timeout and retry rather than hang indefinitely.
 _node_arch=\$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x64/')
-curl -fsSL --retry 3 \
-    \"https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-\${_node_arch}.tar.xz\" \
-    -o /tmp/node.tar.xz
+_node_fetched=false
+for _node_try in 1 2 3; do
+    rm -f /tmp/node.tar.xz
+    if timeout 90 curl -fsSL --connect-timeout 15 --max-time 90 \
+        \"https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-\${_node_arch}.tar.xz\" \
+        -o /tmp/node.tar.xz \
+        && [ -s /tmp/node.tar.xz ]; then
+        _node_fetched=true
+        break
+    fi
+    echo \"node download attempt \${_node_try}/3 failed or stalled, retrying...\"
+    sleep 5
+done
+if ! \$_node_fetched; then
+    echo 'ERROR: node download failed after 3 attempts' >&2
+    exit 1
+fi
 tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
 rm /tmp/node.tar.xz
-npm install -g @anthropic-ai/claude-code @openai/codex \
-    --registry https://registry.npmmirror.com
+
+# npm does not react to SIGTERM while blocked on a stalled fetch (confirmed:
+# a stalled proxy connection left it running 28+ minutes past a plain
+# \`timeout 180\`, which only sends SIGTERM — npm just doesn't act on it mid-
+# fetch). Two layers of defense:
+#   1. --fetch-timeout/--fetch-retries tell npm's own HTTP client to give up
+#      on a single stalled request and retry internally, rather than hanging
+#      on it forever.
+#   2. --kill-after makes the outer \`timeout\` follow up an unheeded SIGTERM
+#      with SIGKILL after 10s, so even if (1) doesn't catch it, the attempt
+#      still terminates for the next retry instead of hanging indefinitely.
+_npm_installed=false
+for _npm_try in 1 2 3; do
+    if timeout --kill-after=10 180 npm install -g @anthropic-ai/claude-code @openai/codex \
+        --registry https://registry.npmmirror.com \
+        --fetch-timeout=60000 --fetch-retries=2 \
+        --fetch-retry-mintimeout=5000 --fetch-retry-maxtimeout=15000; then
+        _npm_installed=true
+        break
+    fi
+    echo \"npm install attempt \${_npm_try}/3 failed or stalled, retrying...\"
+    sleep 5
+done
+if ! \$_npm_installed; then
+    echo 'ERROR: npm install failed after 3 attempts' >&2
+    exit 1
+fi
 
 # Layer 6: make zsh load /etc/profile.d/*.sh (e.g. Hygon's vendor.sh, which
 # sets LD_LIBRARY_PATH/PATH for DTK). bash picks these up via BASH_ENV, but

@@ -126,14 +126,38 @@ RUN apt-get update \
 
 # ------------------------------------------------------------------
 # Claude Code CLI + Codex CLI — Node.js from Aliyun mirror + npm via npmmirror
+#
+# --max-time/timeout bound each node-download attempt and retry a few times:
+# on a flaky proxy the TCP connection can stay open with zero bytes moving
+# (seen in practice on hosts with only an HTTP(S) proxy for egress), which
+# plain --retry/--connect-timeout do not catch since the connection did
+# establish.
+#
+# npm itself does NOT react to SIGTERM while blocked on a stalled fetch
+# (confirmed: a stalled proxy connection left it running 28+ minutes past a
+# plain `timeout 180`). Two layers of defense: --fetch-timeout/--fetch-retries
+# tell npm's own HTTP client to give up on a single stalled request and retry
+# internally; --kill-after follows up an unheeded SIGTERM with SIGKILL after
+# 10s so the attempt still terminates for the next retry even if that fails.
 # ------------------------------------------------------------------
-RUN curl -fsSL --retry 3 \
-        "https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-arm64.tar.xz" \
-        -o /tmp/node.tar.xz \
+RUN for i in 1 2 3; do \
+        rm -f /tmp/node.tar.xz; \
+        timeout 90 curl -fsSL --connect-timeout 15 --max-time 90 \
+            "https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-arm64.tar.xz" \
+            -o /tmp/node.tar.xz && [ -s /tmp/node.tar.xz ] && break; \
+        echo "node download attempt $i/3 failed or stalled, retrying..."; sleep 5; \
+    done \
+    && [ -s /tmp/node.tar.xz ] \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
-    && npm install -g @anthropic-ai/claude-code @openai/codex \
-        --registry https://registry.npmmirror.com
+    && for i in 1 2 3; do \
+        timeout --kill-after=10 180 npm install -g @anthropic-ai/claude-code @openai/codex \
+            --registry https://registry.npmmirror.com \
+            --fetch-timeout=60000 --fetch-retries=2 \
+            --fetch-retry-mintimeout=5000 --fetch-retry-maxtimeout=15000 && break; \
+        echo "npm install attempt $i/3 failed or stalled, retrying..."; sleep 5; \
+        [ "$i" = 3 ] && exit 1; \
+    done
 
 # ------------------------------------------------------------------
 # Switch to non-root user
