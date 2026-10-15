@@ -12,7 +12,9 @@
 #   BASE_IMAGE_TAG    (default: 2.1.2, except nvidia 2.2.0-0.3.0 and
 #                      kunlunxin/thead which set their own)
 #   BASE_IMAGE_NAME   (default: ${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION};
-#                      nvidia uses flagos-app/vllm0.24.0-generic-13.3)
+#                      nvidia uses flagos-app/vllm0.24.0-generic-13.3;
+#                      ascend-910c/ascend-vllm override it for their own
+#                      non-flagos-runtime base images — see those start.sh)
 #   TOOLKIT_VERSION   (optional: override toolkit version, passed as TOOLKIT build-arg)
 #
 # BASE_IMAGE_NAME and BASE_IMAGE_TAG are resolved into the final reference by
@@ -28,6 +30,14 @@ set -euo pipefail
 # ── Defaults ─────────────────────────────────────────────────────
 DEV_IMAGE="${DEV_IMAGE:-flaggems-${PLATFORM}:dev}"
 CONTAINER_NAME="${CONTAINER_NAME:-flaggems-${PLATFORM}-dev-$(id -un)}"
+
+# Snapshot the default container name actually in effect (callers like
+# ascend-910c/start.sh and ascend-vllm/start.sh override CONTAINER_NAME above
+# with a platform-variant suffix before sourcing this file). _parse_args and
+# show_help must compare/display *this* value, not a freshly recomputed
+# flaggems-${PLATFORM}-dev-<user> — recomputing ignored any such override and
+# caused `start.sh <name>` to be misdetected as "多余的参数" on every variant.
+readonly _CONTAINER_NAME_DEFAULT="${CONTAINER_NAME}"
 
 # nvidia and thead use a dedicated (non flagos-runtime) base image under a
 # different registry path; both set BASE_IMAGE_TAG/REGISTRY/NAME themselves
@@ -103,7 +113,7 @@ show_help() {
 
 选项:
     -h, --help              显示帮助信息
-    -n, --name NAME         指定容器名称 (默认: flaggems-${PLATFORM}-dev-<username>)
+    -n, --name NAME         指定容器名称 (默认: ${_CONTAINER_NAME_DEFAULT})
     -f, --force             强制重建容器
         --rebuild-dev       强制重新构建 dev 镜像
         --rebuild           强制重新构建 dev 镜像（与 --rebuild-dev 等价）
@@ -144,7 +154,7 @@ EOF
 
 # ── Argument parsing ──────────────────────────────────────────────
 _parse_args() {
-    local _default_name="flaggems-${PLATFORM}-dev-$(id -un)"
+    local _default_name="${_CONTAINER_NAME_DEFAULT}"
     while [[ $# -gt 0 ]]; do
         case $1 in
             -h|--help)         show_help ;;
@@ -499,7 +509,7 @@ fi
 # vendor.sh overwrites PATH with a fixed value, so re-prepend /flagos/bin
 # afterwards, matching the order /etc/bash_env.sh already uses for bash.
 if [ -d /etc/profile.d ] && ! grep -q '/etc/profile.d' /etc/zsh/zshenv 2>/dev/null; then
-    printf '\nfor f in /etc/profile.d/*.sh; do [ -r \"\$f\" ] && . \"\$f\"; done\nexport PATH=\"/flagos/bin:\$PATH\"\n' >> /etc/zsh/zshenv
+    printf '\nfor f in /etc/profile.d/*.sh; do [ -r \"\$f\" ] && . \"\$f\"; done\n[ -d /flagos/bin ] && export PATH=\"/flagos/bin:\$PATH\"\n' >> /etc/zsh/zshenv
 fi
 "
         # Platform post-build hook: runs inside the build container as root.

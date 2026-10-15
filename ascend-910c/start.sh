@@ -496,8 +496,10 @@ while IFS= read -r line; do
     esac
 done < <(echo "$ENV_EXPORTS")
 
-# Ensure /flagos/bin leads PATH so the FlagOS venv python3 wins over system python3.
-ENV_BLOCK+='export PATH=/flagos/bin:$PATH'$'\n'
+# Ensure /flagos/bin leads PATH so the FlagOS venv python3 wins over system
+# python3 — but only on FlagOS-based images; a vllm-ascend-style base image
+# has no /flagos venv, so prepending it would just add a dead path.
+[[ -d /flagos/bin ]] && ENV_BLOCK+='export PATH=/flagos/bin:$PATH'$'\n'
 ENV_BLOCK+="$MARKER_END"
 
 # Write (or replace) the block in ~/.zshrc and ~/.bashrc (idempotent).

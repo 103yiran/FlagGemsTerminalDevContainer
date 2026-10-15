@@ -22,6 +22,8 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # Ascend (910B) launcher — sources common/lib.sh
 ├── ascend-910c/
 │   └── start.sh          # Ascend 910C launcher — same platform logic, 910C-specific base image
+├── ascend-vllm/
+│   └── start.sh          # Ascend launcher on the upstream vllm-ascend image — same platform logic, vllm-ascend base image
 ├── metax/
 │   └── start.sh          # Metax launcher — sources common/lib.sh
 ├── iluvatar/
@@ -64,7 +66,7 @@ FlagGemsTerminalDevContainer/
 - NVIDIA platform: NVIDIA Container Toolkit installed on the host
 - Hygon platform: `/dev/kfd`, `/dev/dri` devices available on the host and `/opt/hyhal` mounted
 - Cambricon platform: `/dev/cambricon_dev*` and `/dev/cambricon_ctl` devices available on the host
-- Ascend platform (both `ascend/` and `ascend-910c/`): `/dev/davinci0`, `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` devices available on the host; `/usr/local/Ascend/driver`, `/usr/local/dcmi`, and `/usr/local/sbin/npu-smi` present on the host
+- Ascend platform (`ascend/`, `ascend-910c/`, and `ascend-vllm/`): `/dev/davinci0`, `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` devices available on the host; `/usr/local/Ascend/driver`, `/usr/local/dcmi`, and `/usr/local/sbin/npu-smi` present on the host
 - Metax platform: `/dev/mxcd` and `/dev/dri` devices available on the host; user must be in the `video` group
 - Iluvatar platform: `/dev/iluvatar0` through `/dev/iluvatar15` devices available on the host and `/usr/local/corex` present on the host
 - Moore Threads platform: `/dev/mtgpu.0` through `/dev/mtgpu.7` and `/dev/dri` devices available on the host, `/usr/bin/mthreads-gmi` present on the host; user must be in the `render` and `video` groups
@@ -121,6 +123,27 @@ env injection) but built on the 910C-specific base image
 `flagos-runtime-ascend-cann9.0.0`. Uses its own dev image/container name
 (`flaggems-ascend-910c:dev`, `flaggems-ascend-910c-dev-<username>`) so it
 never collides with a plain Ascend container on the same host.
+
+### Launch (Ascend, vllm-ascend base image)
+
+```bash
+./ascend-vllm/start.sh
+```
+
+Same platform setup as `ascend/start.sh` (device mounts, driver baking,
+HwHiAiUser group, CANN env injection) but built on the upstream
+[vllm-ascend](https://github.com/vllm-project/vllm-ascend) image
+(`m.daocloud.io/quay.io/ascend/vllm-ascend:v0.26.0rc1`) instead of a
+FlagOS `flagos-runtime`/`flagos-base` image. That base image ships vLLM,
+torch_npu, and vllm-ascend preinstalled into the system Python (no `/flagos`
+venv), runs as root by default, and has no `HwHiAiUser` group — this launcher
+adds the same non-root NPU access setup used by `ascend-910c/start.sh` on top
+of it. Uses its own dev image/container name (`flaggems-vllm-ascend:dev`,
+`flaggems-vllm-ascend-dev-<username>`) so it never collides with the other
+two Ascend containers on the same host. Defaults to mounting the
+`../FlagGems-vllm` sibling checkout (still at `/workspace/FlagGems` inside
+the container) rather than plain FlagGems — use `--repo` to mount something
+else. Override `BASE_IMAGE_TAG` to pin a different vllm-ascend release.
 
 ### Launch (Metax)
 

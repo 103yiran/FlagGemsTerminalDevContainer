@@ -22,6 +22,8 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # Ascend（910B）启动脚本，source common/lib.sh
 ├── ascend-910c/
 │   └── start.sh          # Ascend 910C 启动脚本，平台逻辑相同，base 镜像为 910C 专用版本
+├── ascend-vllm/
+│   └── start.sh          # Ascend 启动脚本，基于上游 vllm-ascend 镜像，平台逻辑相同
 ├── metax/
 │   └── start.sh          # Metax 启动脚本，source common/lib.sh
 ├── iluvatar/
@@ -62,7 +64,7 @@ FlagGemsTerminalDevContainer/
 - NVIDIA 平台：宿主机已安装 NVIDIA Container Toolkit
 - Hygon 平台：宿主机已挂载 `/dev/kfd`、`/dev/dri` 等设备，`/opt/hyhal` 已就位
 - Cambricon 平台：宿主机已挂载 `/dev/cambricon_dev*` 及 `/dev/cambricon_ctl` 设备
-- Ascend 平台（`ascend/` 与 `ascend-910c/` 均适用）：宿主机已挂载 `/dev/davinci0`、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` 设备，且 `/usr/local/Ascend/driver`、`/usr/local/dcmi`、`/usr/local/sbin/npu-smi` 已就位
+- Ascend 平台（`ascend/`、`ascend-910c/`、`ascend-vllm/` 均适用）：宿主机已挂载 `/dev/davinci0`、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` 设备，且 `/usr/local/Ascend/driver`、`/usr/local/dcmi`、`/usr/local/sbin/npu-smi` 已就位
 - Metax 平台：宿主机已挂载 `/dev/mxcd` 和 `/dev/dri` 设备，用户需在 `video` 组中
 - Iluvatar 平台：宿主机已挂载 `/dev/iluvatar0` 至 `/dev/iluvatar15` 设备，且 `/usr/local/corex` 已就位
 - 摩尔线程（Moore Threads）平台：宿主机已挂载 `/dev/mtgpu.0` 至 `/dev/mtgpu.7` 及 `/dev/dri` 设备，`/usr/bin/mthreads-gmi` 已就位，用户需在 `render` 和 `video` 组中
@@ -118,6 +120,25 @@ NSIGHT_COMPUTE_VERSION=2026.4.0 ./nvidia/start.sh
 而非 `ascend/start.sh` 使用的 `flagos-runtime-ascend-cann9.0.0`。dev 镜像和
 容器名也各自独立（`flaggems-ascend-910c:dev`、
 `flaggems-ascend-910c-dev-<用户名>`），不会与普通 Ascend 容器冲突。
+
+### 启动容器（Ascend，vllm-ascend base 镜像）
+
+```bash
+./ascend-vllm/start.sh
+```
+
+平台配置（设备挂载、驱动烘焙、HwHiAiUser 用户组、CANN 环境变量注入）与
+`ascend/start.sh` 完全一致，区别在于 base 镜像换成了上游
+[vllm-ascend](https://github.com/vllm-project/vllm-ascend) 社区镜像
+（`m.daocloud.io/quay.io/ascend/vllm-ascend:v0.26.0rc1`），而不是 FlagOS 的
+`flagos-runtime`/`flagos-base` 系列。该镜像已经把 vLLM、torch_npu、
+vllm-ascend 装进系统 Python（没有 `/flagos` venv），默认以 root 运行，也没有
+`HwHiAiUser` 组——本脚本在它上面补上了与 `ascend-910c/start.sh` 相同的非 root
+NPU 访问配置。dev 镜像和容器名也各自独立
+（`flaggems-vllm-ascend:dev`、`flaggems-vllm-ascend-dev-<用户名>`），不会与
+另外两个 Ascend 容器冲突。默认挂载的是兄弟目录 `../FlagGems-vllm`（容器内路径
+仍是 `/workspace/FlagGems`），而非普通的 FlagGems——用 `--repo` 可挂载其他仓库。
+可通过 `BASE_IMAGE_TAG` 覆盖固定其他 vllm-ascend 版本。
 
 ### 启动容器（Metax）
 

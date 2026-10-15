@@ -111,7 +111,10 @@ while IFS= read -r raw; do
             BLOCK+="export $raw"$'\n';;
     esac
 done < <(echo "$ENV_EXPORTS")
-BLOCK+='export PATH=/flagos/bin:$PATH'$'\n'
+# Only prepend /flagos/bin on FlagOS-based images; vllm-ascend's own base
+# image has no /flagos venv, so forcing it onto PATH there would just point
+# at a directory that doesn't exist.
+[[ -d /flagos/bin ]] && BLOCK+='export PATH=/flagos/bin:$PATH'$'\n'
 BLOCK+="$MARKER_END"
 
 _write_rc() {
