@@ -225,6 +225,34 @@ export `http_proxy`/`https_proxy`（例如写入 `~/.bashrc`）。`common/lib.sh
 ```bash
 ssh -T git@gitcode.com
 ```
+## 已知限制（Ascend）
+
+在共享的 Ascend 宿主机上，容器内的 NPU 通常**只有 root 能用**。跑任务时加 `-u root`：
+
+```bash
+docker exec -u root -w /workspace/FlagGems flaggems-ascend-dev-$(id -un) \
+    bash -lc 'pytest tests/test_abs.py -vs'
+```
+
+以普通用户身份运行时，`/dev/davinci*` 打开失败并返回 `EBUSY`（errno 16，Device or resource busy），`npu-smi info` 会报 `dcmi model initialized failed ... ret is -8020`。如果是在 PyTorch 里失败，通常表现为 `aclInit` 错误码 `507899` / `Resource_Busy(EL0005)`。
+
+**这不是文件权限问题。** `start.sh` 已经按设备节点的 GID 创建了 `HwHiAiUser` 组并把用户加进去。可以自行确认组这一侧是对的：
+
+```bash
+docker exec -u $(id -un) <容器名> id          # 应包含 groups=...,1000(HwHiAiUser)
+docker exec -u root <容器名> stat -c '%n %u:%g %a' /dev/davinci0   # 应为 1000:1000 660
+```
+
+`EBUSY` 说明内核已经放行了这次 open，是驱动随后主动拒绝的。Ascend 驱动按命名空间独占显卡，同一时刻一张卡只认一个 ns（宿主机 `dmesg` 里的 `uda_occupy_dev_by_ns`，日志为 `Conflict open udevid`）。当某张卡被别的 ns 持有时，驱动只放行**同时满足"真 root"和"持有完整 capability"**的进程——所以把用户加进 `HwHiAiUser` 没有用，给非 root 用户补 capability 也没有用。
+
+对日常使用的影响：
+
+- 凡是要碰 NPU 的操作，用 `docker exec -u root`。纯 CPU 的工作（改代码、跑 lint、CPU 上的 `pytest`）不受影响。
+- **不要**为了让非 root 可用而去掉 `ascend/start.sh` 里的 `--privileged`。特权模式恰恰是 root 能绕过 ns 检查的原因，去掉之后 root 也会失去 NPU 访问。
+- 非 root 可用的前提是分给你的卡没有被其他 ns 占用。这需要全机统一约定——所有容器都改用 `--runtime=ascend -e ASCEND_VISIBLE_DEVICES=<卡号>` 启动，而不是 `--privileged` 加一串 `--device`——因此无法只靠本仓库解决。
+- 清理陈旧的 ns 占用需要重载 Ascend 内核模块或重启宿主机，会影响机器上所有容器，请与宿主机管理员协调。
+
+## SSH 配置
 
 该兜底支持两种转发方式：
 

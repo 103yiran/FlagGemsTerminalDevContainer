@@ -230,6 +230,34 @@ with:
 ```bash
 ssh -T git@gitcode.com
 ```
+## Known limitations (Ascend)
+
+On a shared Ascend host, NPU access inside the container usually works **only as root**. Run workloads with `-u root`:
+
+```bash
+docker exec -u root -w /workspace/FlagGems flaggems-ascend-dev-$(id -un) \
+    bash -lc 'pytest tests/test_abs.py -vs'
+```
+
+As a non-root user, `/dev/davinci*` fails to open with `EBUSY` (errno 16, "Device or resource busy") and `npu-smi info` reports `dcmi model initialized failed ... ret is -8020`. A failure inside PyTorch typically surfaces as `aclInit` error `507899` / `Resource_Busy(EL0005)`.
+
+**This is not a file-permission problem.** `start.sh` already creates the `HwHiAiUser` group with the GID matching the device nodes and adds your user to it. You can confirm the group side is correct:
+
+```bash
+docker exec -u $(id -un) <container> id          # expect groups=...,1000(HwHiAiUser)
+docker exec -u root <container> stat -c '%n %u:%g %a' /dev/davinci0   # expect 1000:1000 660
+```
+
+`EBUSY` means the kernel already allowed the open and the driver then refused it. The Ascend driver grants each card to one namespace at a time (`uda_occupy_dev_by_ns` in the host's `dmesg`, logging `Conflict open udevid`). When another namespace holds a card, the driver only admits a process that is **both** real root **and** holds full capabilities — so adding a user to `HwHiAiUser` cannot help, and neither can granting capabilities to a non-root user.
+
+Consequences for day-to-day use:
+
+- Prefer `docker exec -u root` for anything that touches the NPU. CPU-only work (editing, linting, `pytest` on CPU) needs no special treatment.
+- Do **not** remove `--privileged` from `ascend/start.sh` expecting non-root access to start working. Privileged mode is precisely what lets root bypass the namespace check; without it root loses NPU access too.
+- Non-root access only becomes possible when the cards assigned to you are not held by another namespace. That requires a host-wide convention — every container launched with `--runtime=ascend -e ASCEND_VISIBLE_DEVICES=<ids>` instead of `--privileged` plus explicit `--device` flags — and so cannot be fixed from this repository alone.
+- Clearing stale namespace ownership requires reloading the Ascend kernel modules or rebooting the host, which disrupts every container on the machine. Coordinate with the host administrator.
+
+## SSH configuration
 
 Either SSH forwarding mode works for this fallback:
 
