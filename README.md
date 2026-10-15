@@ -24,6 +24,8 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # Ascend 910C launcher — same platform logic, 910C-specific base image
 ├── ascend-vllm/
 │   └── start.sh          # Ascend launcher on the upstream vllm-ascend image — same platform logic, vllm-ascend base image
+├── ascend-vllm-910c/
+│   └── start.sh          # Ascend launcher on the upstream vllm-ascend image, Atlas A3 (-a3) tag — same platform logic, 16-device range
 ├── metax/
 │   └── start.sh          # Metax launcher — sources common/lib.sh
 ├── iluvatar/
@@ -66,7 +68,7 @@ FlagGemsTerminalDevContainer/
 - NVIDIA platform: NVIDIA Container Toolkit installed on the host
 - Hygon platform: `/dev/kfd`, `/dev/dri` devices available on the host and `/opt/hyhal` mounted
 - Cambricon platform: `/dev/cambricon_dev*` and `/dev/cambricon_ctl` devices available on the host
-- Ascend platform (`ascend/`, `ascend-910c/`, and `ascend-vllm/`): `/dev/davinci0`, `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` devices available on the host; `/usr/local/Ascend/driver`, `/usr/local/dcmi`, and `/usr/local/sbin/npu-smi` present on the host
+- Ascend platform (`ascend/`, `ascend-910c/`, `ascend-vllm/`, and `ascend-vllm-910c/`): `/dev/davinci0`, `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` devices available on the host (`ascend-vllm-910c/` expects up to 16 devices, `/dev/davinci0`–`/dev/davinci15`, matching Atlas A3 nodes); `/usr/local/Ascend/driver`, `/usr/local/dcmi`, and `/usr/local/sbin/npu-smi` present on the host
 - Metax platform: `/dev/mxcd` and `/dev/dri` devices available on the host; user must be in the `video` group
 - Iluvatar platform: `/dev/iluvatar0` through `/dev/iluvatar15` devices available on the host and `/usr/local/corex` present on the host
 - Moore Threads platform: `/dev/mtgpu.0` through `/dev/mtgpu.7` and `/dev/dri` devices available on the host, `/usr/bin/mthreads-gmi` present on the host; user must be in the `render` and `video` groups
@@ -140,10 +142,27 @@ venv), runs as root by default, and has no `HwHiAiUser` group — this launcher
 adds the same non-root NPU access setup used by `ascend-910c/start.sh` on top
 of it. Uses its own dev image/container name (`flaggems-vllm-ascend:dev`,
 `flaggems-vllm-ascend-dev-<username>`) so it never collides with the other
-two Ascend containers on the same host. Defaults to mounting the
+Ascend containers on the same host. Defaults to mounting the
 `../FlagGems-vllm` sibling checkout (still at `/workspace/FlagGems` inside
 the container) rather than plain FlagGems — use `--repo` to mount something
 else. Override `BASE_IMAGE_TAG` to pin a different vllm-ascend release.
+
+### Launch (Ascend, vllm-ascend base image, Atlas A3)
+
+```bash
+./ascend-vllm-910c/start.sh
+```
+
+Same as `ascend-vllm/start.sh` above (same base image stack, same non-root
+NPU access setup, same `../FlagGems-vllm` default mount) but pinned to the
+`v0.26.0rc1-a3` tag — vllm-ascend's own [Dockerfile.a3](https://github.com/vllm-project/vllm-ascend/blob/v0.26.0rc1/Dockerfile.a3)
+build, targeting Atlas A3 (910_93) hardware instead of 910B. The only other
+difference is the device range: this launcher mounts `/dev/davinci0` through
+`/dev/davinci15` (16 devices) to match a typical Atlas A3 node, rather than
+the 8-device range (`/dev/davinci0`–`/dev/davinci7`) used by the other three
+Ascend launchers. Uses its own dev image/container name
+(`flaggems-vllm-ascend-910c:dev`, `flaggems-vllm-ascend-910c-dev-<username>`)
+so it never collides with the other Ascend containers on the same host.
 
 ### Launch (Metax)
 

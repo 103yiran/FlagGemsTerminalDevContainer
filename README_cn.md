@@ -24,6 +24,8 @@ FlagGemsTerminalDevContainer/
 │   └── start.sh          # Ascend 910C 启动脚本，平台逻辑相同，base 镜像为 910C 专用版本
 ├── ascend-vllm/
 │   └── start.sh          # Ascend 启动脚本，基于上游 vllm-ascend 镜像，平台逻辑相同
+├── ascend-vllm-910c/
+│   └── start.sh          # Ascend 启动脚本，基于上游 vllm-ascend 镜像的 Atlas A3（-a3）版本，平台逻辑相同，设备范围扩到 16 卡
 ├── metax/
 │   └── start.sh          # Metax 启动脚本，source common/lib.sh
 ├── iluvatar/
@@ -64,7 +66,7 @@ FlagGemsTerminalDevContainer/
 - NVIDIA 平台：宿主机已安装 NVIDIA Container Toolkit
 - Hygon 平台：宿主机已挂载 `/dev/kfd`、`/dev/dri` 等设备，`/opt/hyhal` 已就位
 - Cambricon 平台：宿主机已挂载 `/dev/cambricon_dev*` 及 `/dev/cambricon_ctl` 设备
-- Ascend 平台（`ascend/`、`ascend-910c/`、`ascend-vllm/` 均适用）：宿主机已挂载 `/dev/davinci0`、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` 设备，且 `/usr/local/Ascend/driver`、`/usr/local/dcmi`、`/usr/local/sbin/npu-smi` 已就位
+- Ascend 平台（`ascend/`、`ascend-910c/`、`ascend-vllm/`、`ascend-vllm-910c/` 均适用）：宿主机已挂载 `/dev/davinci0`、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` 设备（`ascend-vllm-910c/` 对应 Atlas A3 节点，预期最多 16 张卡，`/dev/davinci0`–`/dev/davinci15`），且 `/usr/local/Ascend/driver`、`/usr/local/dcmi`、`/usr/local/sbin/npu-smi` 已就位
 - Metax 平台：宿主机已挂载 `/dev/mxcd` 和 `/dev/dri` 设备，用户需在 `video` 组中
 - Iluvatar 平台：宿主机已挂载 `/dev/iluvatar0` 至 `/dev/iluvatar15` 设备，且 `/usr/local/corex` 已就位
 - 摩尔线程（Moore Threads）平台：宿主机已挂载 `/dev/mtgpu.0` 至 `/dev/mtgpu.7` 及 `/dev/dri` 设备，`/usr/bin/mthreads-gmi` 已就位，用户需在 `render` 和 `video` 组中
@@ -136,9 +138,26 @@ vllm-ascend 装进系统 Python（没有 `/flagos` venv），默认以 root 运�
 `HwHiAiUser` 组——本脚本在它上面补上了与 `ascend-910c/start.sh` 相同的非 root
 NPU 访问配置。dev 镜像和容器名也各自独立
 （`flaggems-vllm-ascend:dev`、`flaggems-vllm-ascend-dev-<用户名>`），不会与
-另外两个 Ascend 容器冲突。默认挂载的是兄弟目录 `../FlagGems-vllm`（容器内路径
+其他 Ascend 容器冲突。默认挂载的是兄弟目录 `../FlagGems-vllm`（容器内路径
 仍是 `/workspace/FlagGems`），而非普通的 FlagGems——用 `--repo` 可挂载其他仓库。
 可通过 `BASE_IMAGE_TAG` 覆盖固定其他 vllm-ascend 版本。
+
+### 启动容器（Ascend，vllm-ascend base 镜像，Atlas A3）
+
+```bash
+./ascend-vllm-910c/start.sh
+```
+
+与上面的 `ascend-vllm/start.sh` 完全一致（同一套 base 镜像体系、同一套非 root
+NPU 访问配置、同样默认挂载 `../FlagGems-vllm`），区别仅在于固定使用
+`v0.26.0rc1-a3` 这个 tag——即 vllm-ascend 自己的
+[Dockerfile.a3](https://github.com/vllm-project/vllm-ascend/blob/v0.26.0rc1/Dockerfile.a3)
+构建产物，面向 Atlas A3（910_93）硬件而非 910B。另一处差异是设备范围：本脚本
+挂载 `/dev/davinci0` 到 `/dev/davinci15`（16 张卡），匹配典型的 Atlas A3
+节点规格，而不是其他三个 Ascend 启动脚本使用的 8 卡范围
+（`/dev/davinci0`–`/dev/davinci7`）。dev 镜像和容器名也各自独立
+（`flaggems-vllm-ascend-910c:dev`、`flaggems-vllm-ascend-910c-dev-<用户名>`），
+不会与其他 Ascend 容器冲突。
 
 ### 启动容器（Metax）
 
