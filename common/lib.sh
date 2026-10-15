@@ -275,8 +275,24 @@ _build_dev() {
             done < <(platform_build_args)
         fi
 
-        # Ensure the build container is removed even if the build fails
-        trap "docker rm -f '$build_ctr' 2>/dev/null || true" EXIT
+        # Clean up the build container on EXIT — but only on success. On
+        # failure (e.g. a network blip during the Aliyun/NJU/npmmirror steps)
+        # leave it running so it can be inspected directly: the host's
+        # http_proxy/https_proxy env, /etc/resolv.conf, and a retry of the
+        # failing curl/npm command from inside are usually enough to tell a
+        # genuine config bug from a transient outage. Clean it up by hand
+        # once done: docker rm -f <name>.
+        _build_dev_cleanup() {
+            local _exit_code=$?
+            if [[ $_exit_code -eq 0 ]]; then
+                docker rm -f "$build_ctr" 2>/dev/null || true
+            else
+                print_warn "构建失败（退出码 ${_exit_code}），保留容器以便排查: ${build_ctr}"
+                print_warn "  进入排查: docker exec -it -u root ${build_ctr} bash"
+                print_warn "  排查完成后手动清理: docker rm -f ${build_ctr}"
+            fi
+        }
+        trap _build_dev_cleanup EXIT
 
         # Start a throw-away container with seccomp=unconfined so RUN commands work.
         # PROXY_ARGS forwards the host's http_proxy/https_proxy/no_proxy (if any)
@@ -516,7 +532,7 @@ fi
         docker commit "${_commit_args[@]}" "$build_ctr" "$DEV_IMAGE"
 
         docker rm -f "$build_ctr"
-        trap - EXIT  # build succeeded, cancel the cleanup trap
+        trap - EXIT  # already cleaned up above — skip _build_dev_cleanup
         print_success "dev 镜像构建完成: $DEV_IMAGE"
         FORCE_RECREATE=true
     else
