@@ -389,4 +389,46 @@ LUA
 info "Cursor visibility fix installed to ~/.config/nvim/lua/plugins/cursor-fix.lua"
 
 # ------------------------------------------------------------------
+# Install OSC 52 clipboard integration for all platforms
+#
+# The container has no X11/Wayland display, so there is no xclip/xsel/
+# wl-copy for nvim's default clipboard provider to shell out to — yanks
+# silently stay in nvim's internal register and never reach the host
+# clipboard. tmux's copy-mode works today because it writes OSC 52
+# directly to the outer terminal, bypassing any in-container clipboard
+# tool entirely. Point nvim at the same mechanism: nvim >= 0.10 ships a
+# built-in OSC 52 provider (vim.ui.clipboard.osc52) that does the same
+# escape-sequence write, so "+y"/"+p now round-trip through the host
+# terminal exactly like tmux's does — including when nvim runs inside tmux.
+# ------------------------------------------------------------------
+info "Installing OSC 52 clipboard integration..."
+mkdir -p "${HOME}/.config/nvim/lua/plugins"
+cat > "${HOME}/.config/nvim/lua/plugins/clipboard-osc52.lua" << 'LUA'
+-- Route the unnamed/system clipboard through OSC 52 instead of nvim's
+-- default xclip/xsel/wl-copy providers, none of which exist in this
+-- headless container. OSC 52 is a terminal escape sequence the host
+-- terminal (or an outer tmux) intercepts and forwards to the real system
+-- clipboard, so this works over SSH and docker exec alike with no extra
+-- tooling inside the container.
+local osc52 = require("vim.ui.clipboard.osc52")
+vim.g.clipboard = {
+  name = "OSC 52",
+  copy = {
+    ["+"] = osc52.copy("+"),
+    ["*"] = osc52.copy("*"),
+  },
+  paste = {
+    -- Terminal-initiated OSC 52 paste (the terminal answering a query)
+    -- isn't reliably supported through docker exec/tmux passthrough, so
+    -- paste falls back to whatever is already in the register.
+    ["+"] = osc52.paste("+"),
+    ["*"] = osc52.paste("*"),
+  },
+}
+
+return {}
+LUA
+info "OSC 52 clipboard integration installed to ~/.config/nvim/lua/plugins/clipboard-osc52.lua"
+
+# ------------------------------------------------------------------
 info "setup.sh done. Start a new zsh session or run: exec zsh"
