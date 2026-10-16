@@ -65,10 +65,11 @@ lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"
 
 - `Dockerfile` 头部注释里列出的 `PLATFORM=` 选项,以及如果新平台需要在
   构建第 3 层安装自己的 apt/pip 包,还要加对应的 `ARG PLATFORM` 分支。
-- `README.md` / `README_cn.md`——目录结构树、前置条件列表（宿主机需要
-  的设备文件）,以及一条 `### Launch (<Platform>)` 条目。
+- `README.md` / `README_cn.md`——快速开始里的平台启动命令列表。
+- `docs/en/overview.md` / `docs/zh-cn/overview.md`——仓库结构树里的
+  启动脚本列表。
 - `docs/en/platforms.md` / `docs/zh-cn/platforms.md`——给两份表格各加
-  一行。
+  一行（base 镜像、设备文件等）。
 
 ## 2. 测试一个启动脚本的改动
 

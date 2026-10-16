@@ -68,11 +68,11 @@ After adding or changing a launcher, update:
 - `Dockerfile`'s header comment listing `PLATFORM=` options, and its
   `ARG PLATFORM` branches if the platform needs its own apt/pip packages in
   build layer 3.
-- `README.md` / `README_cn.md` — the repository layout tree, the
-  prerequisites list (device files required on the host), and a `### Launch
-  (<Platform>)` entry.
+- `README.md` / `README_cn.md` — the launch-command list in Quick start.
+- `docs/en/overview.md` / `docs/zh-cn/overview.md` — the launcher list in
+  the repository layout tree.
 - `docs/en/platforms.md` / `docs/zh-cn/platforms.md` — add a row to both
-  tables.
+  tables (base image, device files, etc).
 
 ## 2. Testing a launcher change
 
