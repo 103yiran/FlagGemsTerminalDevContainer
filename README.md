@@ -4,6 +4,9 @@ A terminal development container environment for [FlagGems](https://github.com/F
 
 [中文文档](README_cn.md)
 
+For a deeper look at the architecture, per-platform differences, and how to
+add a new platform, see [docs/en](docs/en/_index.md).
+
 ## Repository layout
 
 ```
