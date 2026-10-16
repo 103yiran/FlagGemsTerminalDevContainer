@@ -132,6 +132,37 @@ platform_build_args() {
 #   /usr/local/Ascend already (that's how vllm-ascend itself was built), but
 #   the host driver always wins here: it matches the NPU firmware actually
 #   running on this machine, which the image's baked-in driver may not.
+#
+# Install the Ascend-focused cannbot plugins for both Claude Code and Codex.
+# common/lib.sh's Layer 5 already installed @anthropic-ai/claude-code and
+# @openai/codex globally via npm before platform_post_build_exec runs, so
+# `npx` and both CLIs are on root's PATH here. Each plugin install is
+# best-effort: a flaky npm registry fetch for one plugin shouldn't fail the
+# whole image build, so failures are logged and the loop continues.
+_ascend_install_cannbot_plugins() {
+    local _ctr="$1"
+    local _plugins=(
+        triton-op-generator
+        hccl-op-generator
+        model-infer-optimize
+        ops-registry-invoke
+        ops-direct-invoke
+    )
+    local _tools=(claude codex)
+
+    print_step "安装 cannbot 插件 (Ascend 算子/模型推理相关)..."
+    local _plugin _tool
+    for _plugin in "${_plugins[@]}"; do
+        for _tool in "${_tools[@]}"; do
+            if ! docker exec -u root "$_ctr" bash -c "
+                npx -y @cannbot-plugin/cannbot@latest install '${_plugin}' --tool '${_tool}'
+            "; then
+                echo "WARNING: cannbot plugin '${_plugin}' (--tool ${_tool}) 安装失败,跳过" >&2
+            fi
+        done
+    done
+}
+
 platform_post_build_exec() {
     local _ctr="$1"
 
@@ -158,6 +189,8 @@ platform_post_build_exec() {
             chmod -R a+rX /usr/local/dcmi
         '
     fi
+
+    _ascend_install_cannbot_plugins "$_ctr"
 }
 
 # ── Platform environment variables ────────────────────────────────

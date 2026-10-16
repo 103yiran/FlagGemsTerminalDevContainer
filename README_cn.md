@@ -159,6 +159,32 @@ NPU 访问配置、同样默认挂载 `../FlagGems-vllm`），区别仅在于固
 （`flaggems-vllm-ascend-910c:dev`、`flaggems-vllm-ascend-910c-dev-<用户名>`），
 不会与其他 Ascend 容器冲突。
 
+### Ascend cannbot 插件
+
+四个 Ascend 启动脚本（`ascend`、`ascend-910c`、`ascend-vllm`、
+`ascend-vllm-910c`）在构建 dev 镜像时，会在 `common/lib.sh` 已安装的
+Claude Code 和 Codex CLI 基础上，额外安装一组
+[cannbot](https://www.npmjs.com/package/@cannbot-plugin/cannbot) 插件。这个
+过程是自动完成的，不需要额外参数，执行的命令是：
+
+```bash
+npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool claude
+npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool codex
+```
+
+针对以下每个 plugin 都会执行一次：
+
+- `triton-op-generator`
+- `hccl-op-generator`
+- `model-infer-optimize`
+- `ops-registry-invoke`
+- `ops-direct-invoke`
+
+这些插件为 `claude` 和 `codex` 提供了 Ascend 专属的上下文，用于生成
+Triton/HCCL 算子，以及在模型推理场景中注册/调用算子。单个 plugin 安装失败
+（例如 npm registry 偶发抓取失败）只会打印警告，不会导致整个镜像构建失败——
+如果某个 plugin 没装上，重新执行一次 `start.sh` 即可重试。
+
 ### 启动容器（Metax）
 
 ```bash
@@ -241,7 +267,7 @@ NPU 访问配置、同样默认挂载 `../FlagGems-vllm`），区别仅在于固
 | 编辑器 | Neovim ≥ 0.11（LazyVim，首次启动时自动同步插件） |
 | Python | `/flagos` 虚拟环境，已安装 FlagGems 及依赖（由 base 镜像提供） |
 | 代码质量 | `pre-commit`、`flake8`、`black`、`isort`、`clang-format`（仅 NVIDIA 和平头哥） |
-| AI 工具 | Claude Code CLI（`claude` 命令） |
+| AI 工具 | Claude Code CLI（`claude` 命令）、Codex CLI（`codex` 命令） |
 | 其他 | `ripgrep`、`fd`、`gh`（GitHub CLI）、`sudo`（无密码） |
 | 性能分析 | NVIDIA Nsight Compute（`ncu`），仅 NVIDIA —— 由 `nvidia/start.sh` 安装，详见 `nvidia/install-nsight-compute.sh` |
 

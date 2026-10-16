@@ -164,6 +164,33 @@ Ascend launchers. Uses its own dev image/container name
 (`flaggems-vllm-ascend-910c:dev`, `flaggems-vllm-ascend-910c-dev-<username>`)
 so it never collides with the other Ascend containers on the same host.
 
+### Ascend cannbot plugins
+
+All four Ascend launchers (`ascend`, `ascend-910c`, `ascend-vllm`,
+`ascend-vllm-910c`) install a set of [cannbot](https://www.npmjs.com/package/@cannbot-plugin/cannbot)
+plugins into the dev image during build, on top of the Claude Code and Codex
+CLIs already installed by `common/lib.sh`. This happens automatically — no
+extra flags needed — via:
+
+```bash
+npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool claude
+npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool codex
+```
+
+for each of the following plugins:
+
+- `triton-op-generator`
+- `hccl-op-generator`
+- `model-infer-optimize`
+- `ops-registry-invoke`
+- `ops-direct-invoke`
+
+These give both `claude` and `codex` Ascend-specific context for generating
+Triton/HCCL ops and invoking/registering ops during model inference work. A
+single plugin failing to install (e.g. a flaky npm registry fetch) only logs
+a warning and does not fail the image build — rerun `start.sh` to retry if a
+plugin didn't make it in.
+
 ### Launch (Metax)
 
 ```bash
@@ -246,7 +273,7 @@ Examples:
 | Editor | Neovim ≥ 0.11 (LazyVim; plugins synced automatically on first launch) |
 | Python | `/flagos` virtualenv with FlagGems and its dependencies pre-installed (from the base image) |
 | Code quality | `pre-commit`, `flake8`, `black`, `isort`, `clang-format` (NVIDIA and T-Head only) |
-| AI tooling | Claude Code CLI (`claude` command) |
+| AI tooling | Claude Code CLI (`claude` command), Codex CLI (`codex` command) |
 | Utilities | `ripgrep`, `fd`, `gh` (GitHub CLI), passwordless `sudo` |
 | Profiling | NVIDIA Nsight Compute (`ncu`), NVIDIA only — installed by `nvidia/start.sh`, see `nvidia/install-nsight-compute.sh` |
 
