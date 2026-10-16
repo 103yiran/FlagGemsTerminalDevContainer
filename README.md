@@ -138,7 +138,7 @@ never collides with a plain Ascend container on the same host.
 Same platform setup as `ascend/start.sh` (device mounts, driver baking,
 HwHiAiUser group, CANN env injection) but built on the upstream
 [vllm-ascend](https://github.com/vllm-project/vllm-ascend) image
-(`m.daocloud.io/quay.io/ascend/vllm-ascend:v0.26.0rc1`) instead of a
+(`m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1`) instead of a
 FlagOS `flagos-runtime`/`flagos-base` image. That base image ships vLLM,
 torch_npu, and vllm-ascend preinstalled into the system Python (no `/flagos`
 venv), runs as root by default, and has no `HwHiAiUser` group — this launcher
@@ -158,7 +158,7 @@ else. Override `BASE_IMAGE_TAG` to pin a different vllm-ascend release.
 
 Same as `ascend-vllm/start.sh` above (same base image stack, same non-root
 NPU access setup, same `../FlagGems-vllm` default mount) but pinned to the
-`v0.26.0rc1-a3` tag — vllm-ascend's own [Dockerfile.a3](https://github.com/vllm-project/vllm-ascend/blob/v0.26.0rc1/Dockerfile.a3)
+`v0.30.0rc1-a3` tag — vllm-ascend's own [Dockerfile.a3](https://github.com/vllm-project/vllm-ascend/blob/v0.30.0rc1/Dockerfile.a3)
 build, targeting Atlas A3 (910_93) hardware instead of 910B. The only other
 difference is the device range: this launcher mounts `/dev/davinci0` through
 `/dev/davinci15` (16 devices) to match a typical Atlas A3 node, rather than

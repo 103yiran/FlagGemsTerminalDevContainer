@@ -135,7 +135,7 @@ NSIGHT_COMPUTE_VERSION=2026.4.0 ./nvidia/start.sh
 平台配置（设备挂载、驱动烘焙、HwHiAiUser 用户组、CANN 环境变量注入）与
 `ascend/start.sh` 完全一致，区别在于 base 镜像换成了上游
 [vllm-ascend](https://github.com/vllm-project/vllm-ascend) 社区镜像
-（`m.daocloud.io/quay.io/ascend/vllm-ascend:v0.26.0rc1`），而不是 FlagOS 的
+（`m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1`），而不是 FlagOS 的
 `flagos-runtime`/`flagos-base` 系列。该镜像已经把 vLLM、torch_npu、
 vllm-ascend 装进系统 Python（没有 `/flagos` venv），默认以 root 运行，也没有
 `HwHiAiUser` 组——本脚本在它上面补上了与 `ascend-910c/start.sh` 相同的非 root
@@ -153,8 +153,8 @@ NPU 访问配置。dev 镜像和容器名也各自独立
 
 与上面的 `ascend-vllm/start.sh` 完全一致（同一套 base 镜像体系、同一套非 root
 NPU 访问配置、同样默认挂载 `../FlagGems-vllm`），区别仅在于固定使用
-`v0.26.0rc1-a3` 这个 tag——即 vllm-ascend 自己的
-[Dockerfile.a3](https://github.com/vllm-project/vllm-ascend/blob/v0.26.0rc1/Dockerfile.a3)
+`v0.30.0rc1-a3` 这个 tag——即 vllm-ascend 自己的
+[Dockerfile.a3](https://github.com/vllm-project/vllm-ascend/blob/v0.30.0rc1/Dockerfile.a3)
 构建产物，面向 Atlas A3（910_93）硬件而非 910B。另一处差异是设备范围：本脚本
 挂载 `/dev/davinci0` 到 `/dev/davinci15`（16 张卡），匹配典型的 Atlas A3
 节点规格，而不是其他三个 Ascend 启动脚本使用的 8 卡范围

@@ -2,10 +2,10 @@
 # ascend-vllm-910c/start.sh — launch the FlagGems Ascend dev container on the
 # vllm-ascend community base image, A3-variant tag.
 #
-# Base image:  m.daocloud.io/quay.io/ascend/vllm-ascend:v0.26.0rc1-a3
+# Base image:  m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1-a3
 #              (upstream vllm-ascend image built from Dockerfile.a3 — same
 #              CANN/vLLM/torch_npu/vllm-ascend stack as the plain
-#              v0.26.0rc1 tag ascend-vllm/start.sh uses, just built against
+#              v0.30.0rc1 tag ascend-vllm/start.sh uses, just built against
 #              the Atlas A3 (910_93) CANN base image and SOC_VERSION instead
 #              of 910b; dev image flaggems-vllm-ascend-910c:dev)
 #
@@ -52,7 +52,7 @@ PLATFORM="ascend"
 # ascend-vllm/start.sh (-a3 suffix selects the Atlas A3 build).
 BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-m.daocloud.io/quay.io/ascend}"
 BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/vllm-ascend}"
-BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-v0.26.0rc1-a3}"
+BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-v0.30.0rc1-a3}"
 
 # Distinct dev image / default container name so a vllm-ascend-910c container
 # never collides with ascend/start.sh, ascend-910c/start.sh, or

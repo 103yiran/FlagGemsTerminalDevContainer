@@ -13,8 +13,8 @@ at the four Ascend variants specifically.
 | `cambricon/start.sh` | `cambricon` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2` | `neuware4.7.2` | `flaggems-cambricon:dev` / `flaggems-cambricon-dev-<user>` |
 | `ascend/start.sh` | `ascend` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.2.0` | `cann9.0.0` | `flaggems-ascend:dev` / `flaggems-ascend-dev-<user>` |
 | `ascend-910c/start.sh` | `ascend` | `harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0-910c:2.2.0` | `cann9.0.0` | `flaggems-ascend-910c:dev` / `flaggems-ascend-910c-dev-<user>` |
-| `ascend-vllm/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.26.0rc1` | n/a (upstream image) | `flaggems-vllm-ascend:dev` / `flaggems-vllm-ascend-dev-<user>` |
-| `ascend-vllm-910c/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.26.0rc1-a3` | n/a (upstream image, `Dockerfile.a3`) | `flaggems-vllm-ascend-910c:dev` / `flaggems-vllm-ascend-910c-dev-<user>` |
+| `ascend-vllm/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1` | n/a (upstream image) | `flaggems-vllm-ascend:dev` / `flaggems-vllm-ascend-dev-<user>` |
+| `ascend-vllm-910c/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1-a3` | n/a (upstream image, `Dockerfile.a3`) | `flaggems-vllm-ascend-910c:dev` / `flaggems-vllm-ascend-910c-dev-<user>` |
 | `metax/start.sh` | `metax` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2` | `maca3.8.1.3` | `flaggems-metax:dev` / `flaggems-metax-dev-<user>` |
 | `iluvatar/start.sh` | `iluvatar` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2` | `corex4.5.0` | `flaggems-iluvatar:dev` / `flaggems-iluvatar-dev-<user>` |
 | `mthreads/start.sh` | `mthreads` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.1.2` | `musa5.2.0` | `flaggems-mthreads:dev` / `flaggems-mthreads-dev-<user>` |

@@ -12,8 +12,8 @@ Ascend 有 4 个启动脚本（`ascend/start.sh`、`ascend-910c/start.sh`、
 |----------|-----------|---------|---------|
 | `ascend/start.sh` | `flagos-runtime-ascend-cann9.0.0`（FlagOS runtime） | 910B | `/dev/davinci0`–`7` |
 | `ascend-910c/start.sh` | `flagos-base-ascend-cann9.0.0-910c`（FlagOS base，910C 专用） | 910C | `/dev/davinci0`–`7` |
-| `ascend-vllm/start.sh` | `vllm-ascend:v0.26.0rc1`（上游镜像，非 FlagOS） | 910B | `/dev/davinci0`–`7` |
-| `ascend-vllm-910c/start.sh` | `vllm-ascend:v0.26.0rc1-a3`（上游 `Dockerfile.a3`） | Atlas A3（910_93） | `/dev/davinci0`–`15`（16 张卡） |
+| `ascend-vllm/start.sh` | `vllm-ascend:v0.30.0rc1`（上游镜像，非 FlagOS） | 910B | `/dev/davinci0`–`7` |
+| `ascend-vllm-910c/start.sh` | `vllm-ascend:v0.30.0rc1-a3`（上游 `Dockerfile.a3`） | Atlas A3（910_93） | `/dev/davinci0`–`15`（16 张卡） |
 
 4 个脚本都设置 `PLATFORM="ascend"`,共享完全相同的设备权限配置、shell
 环境注入,以及 cannbot 安装逻辑——只有 base 镜像引用、由此得到的

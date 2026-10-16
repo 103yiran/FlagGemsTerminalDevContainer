@@ -2,7 +2,7 @@
 # ascend-vllm/start.sh — launch the FlagGems Ascend dev container on the
 # vllm-ascend community base image.
 #
-# Base image:  m.daocloud.io/quay.io/ascend/vllm-ascend:v0.26.0rc1
+# Base image:  m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1
 #              (upstream vllm-ascend image — CANN + torch_npu + vllm +
 #              vllm-ascend preinstalled; dev image flaggems-vllm-ascend:dev)
 #
@@ -52,7 +52,7 @@ PLATFORM="ascend"
 # own non-standard base images.
 BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-m.daocloud.io/quay.io/ascend}"
 BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/vllm-ascend}"
-BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-v0.26.0rc1}"
+BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-v0.30.0rc1}"
 
 # Distinct dev image / default container name so a vllm-ascend container
 # never collides with ascend/start.sh or ascend-910c/start.sh on the same host.

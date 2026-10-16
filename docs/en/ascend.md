@@ -14,8 +14,8 @@ their base image and device count.
 |----------|-----------|------------------|---------------|
 | `ascend/start.sh` | `flagos-runtime-ascend-cann9.0.0` (FlagOS runtime) | 910B | `/dev/davinci0`–`7` |
 | `ascend-910c/start.sh` | `flagos-base-ascend-cann9.0.0-910c` (FlagOS base, 910C-specific) | 910C | `/dev/davinci0`–`7` |
-| `ascend-vllm/start.sh` | `vllm-ascend:v0.26.0rc1` (upstream, not FlagOS) | 910B | `/dev/davinci0`–`7` |
-| `ascend-vllm-910c/start.sh` | `vllm-ascend:v0.26.0rc1-a3` (upstream `Dockerfile.a3`) | Atlas A3 (910_93) | `/dev/davinci0`–`15` (16 devices) |
+| `ascend-vllm/start.sh` | `vllm-ascend:v0.30.0rc1` (upstream, not FlagOS) | 910B | `/dev/davinci0`–`7` |
+| `ascend-vllm-910c/start.sh` | `vllm-ascend:v0.30.0rc1-a3` (upstream `Dockerfile.a3`) | Atlas A3 (910_93) | `/dev/davinci0`–`15` (16 devices) |
 
 All four set `PLATFORM="ascend"` and share identical device-permission,
 shell-env-injection, and cannbot-install logic — only the base image
