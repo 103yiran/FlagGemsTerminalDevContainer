@@ -1,6 +1,6 @@
 # Platforms
 
-A side-by-side reference for all 13 launchers. See [Architecture](architecture.md)
+A side-by-side reference for all 14 launchers. See [Architecture](architecture.md)
 for what each hook actually does, and [Ascend](ascend.md) for a deeper look
 at the four Ascend variants specifically.
 
@@ -10,6 +10,7 @@ at the four Ascend variants specifically.
 |----------|-----------|------------|---------|--------------------------------------|
 | `nvidia/start.sh` | `nvidia` | `harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-13.3:2.2.0-0.3.0` | `cuda13.3` | `flaggems-nvidia:dev` / `flaggems-nvidia-dev-<user>` |
 | `hygon/start.sh` | `hygon` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.2` | `dtk26.04` | `flaggems-hygon:dev` / `flaggems-hygon-dev-<user>` |
+| `dcu-vllm/start.sh` | `hygon` | `harbor.sourcefind.cn:5443/hcu/admin/base/vllm:0.21.0-ubuntu22.04-dtk2604-py3.10` | n/a (upstream image) | `flaggems-vllm-dcu:dev` / `flaggems-vllm-dcu-dev-<user>` |
 | `cambricon/start.sh` | `cambricon` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2` | `neuware4.7.2` | `flaggems-cambricon:dev` / `flaggems-cambricon-dev-<user>` |
 | `ascend/start.sh` | `ascend` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-ascend-cann9.0.0:2.2.0` | `cann9.0.0` | `flaggems-ascend:dev` / `flaggems-ascend-dev-<user>` |
 | `ascend-910c/start.sh` | `ascend` | `harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0-910c:2.2.0` | `cann9.0.0` | `flaggems-ascend-910c:dev` / `flaggems-ascend-910c-dev-<user>` |
@@ -26,6 +27,8 @@ share the Dockerfile's apt-package and group-creation branch, and
 `common/lib.sh`'s default flagos-runtime naming logic) — they distinguish
 themselves purely via `BASE_IMAGE_NAME`/`BASE_IMAGE_TAG` and distinct
 `DEV_IMAGE`/`CONTAINER_NAME` overrides, never by changing `PLATFORM` itself.
+`dcu-vllm/start.sh` follows the same pattern with `PLATFORM="hygon"` against
+the upstream Hygon DCU vllm image.
 
 ## 2. Hardware access: devices, groups, mounts, hooks
 
@@ -33,6 +36,7 @@ themselves purely via `BASE_IMAGE_NAME`/`BASE_IMAGE_TAG` and distinct
 |----------|------------------------------------------|---------------------------|----------------------------------|--------------------|---------------------|
 | `nvidia` | — (`--gpus all` handles device exposure) | `--gpus all`, `--ulimit nofile=1048576:1048576` | — | — | — (post-*container-start* hook: `install-nsight-compute.sh`) |
 | `hygon` | `/dev/kfd`, `/dev/mkfd`, `/dev/dri` | `--group-add video`, `--group-add 39`, `--privileged` | — | `/opt/hyhal` | — |
+| `dcu-vllm` | same as `hygon` | same as `hygon` | — | `/opt/hyhal` | — |
 | `cambricon` | `/dev/cambricon_dev0`–`7`, `/dev/cambricon_ctl` | — | — | — | — |
 | `ascend` (and all 3 other Ascend variants) | `/dev/davinci0`–`7` (`-910c` variants: `0`–`15`), `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` | `--privileged`, `--pid=host`, `--security-opt label=disable` | `HwHiAiUser` | `/usr/local/dcmi`, `/usr/local/sbin/npu-smi` | `platform_build_args` (mounts host driver read-only) + `platform_post_build_exec` (bakes driver/dcmi into image, installs cannbot plugins) — see [Ascend](ascend.md) |
 | `metax` | `/dev/mxcd`, `/dev/dri` | `--group-add=video` | — | — | — |
@@ -71,13 +75,15 @@ instead.
 ## 4. Launchers that wrap `lib_main` vs. just calling it
 
 Most launchers end with a plain `lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"`
-call. Four wrap it (or `_run_container`) instead, because they need to act
+call. Five wrap it (or `_run_container`) instead, because they need to act
 at a point the hook contract doesn't cover directly:
 
-- **`hygon`, `iluvatar`, `mthreads`** — each defines a `_<platform>_patch_mounts`
-  function that prepends a platform-specific `-v` mount to `REPO_MOUNT_ARGS`,
-  and a `_<platform>_lib_main` wrapper that calls `_parse_args`, then the
-  patch function, then replays the rest of `lib_main`'s body by hand.
+- **`hygon`, `dcu-vllm`, `iluvatar`, `mthreads`** — each defines a
+  `_<platform>_patch_mounts` function that prepends a platform-specific `-v`
+  mount to `REPO_MOUNT_ARGS`, and a `_<platform>_lib_main` wrapper that calls
+  `_parse_args`, then the patch function, then replays the rest of
+  `lib_main`'s body by hand. `dcu-vllm` copies `hygon`'s wrapper verbatim —
+  same DCU hardware, just a different (upstream vllm) base image.
 - **`ascend`** (shared by all four Ascend variants, since they source the
   same `ascend-refresh-env.sh`-adjacent logic independently in each
   `start.sh`) — wraps `_run_container` itself (via `declare -f` to copy its
@@ -94,7 +100,7 @@ at a point the hook contract doesn't cover directly:
   when group membership and device permissions are entirely correct. See
   [Ascend §3](ascend.md#3-why-npu-access-is-usually-root-only) for the full
   explanation and the `docker exec -u root` workaround.
-- **`ascend-vllm` / `ascend-vllm-910c`**: default to mounting a
+- **`ascend-vllm` / `ascend-vllm-910c` / `dcu-vllm`**: default to mounting a
   `../FlagGems-vllm` sibling checkout rather than plain FlagGems (use
-  `--repo` to override), since the upstream vllm-ascend image's Python
-  environment is tuned for the vLLM integration path.
+  `--repo` to override), since the upstream vllm-ascend / DCU vllm image's
+  Python environment is tuned for the vLLM integration path.

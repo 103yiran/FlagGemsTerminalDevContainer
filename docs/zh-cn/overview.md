@@ -4,8 +4,9 @@
 
 FlagGemsTerminalDevContainer 是一组启动脚本,为
 [FlagGems](https://github.com/FlagOpen/FlagGems) 贡献者按硬件平台拉起终端
-开发容器：NVIDIA、Hygon、Cambricon、Ascend（4 个变体）、Metax、Iluvatar、
-摩尔线程、昆仑芯、平头哥。每个平台的容器形态是一致的——zsh + oh-my-zsh、
+开发容器：NVIDIA、Hygon（含普通与 vllm 两个变体）、Cambricon、
+Ascend（4 个变体）、Metax、Iluvatar、摩尔线程、昆仑芯、平头哥。每个平台的
+容器形态是一致的——zsh + oh-my-zsh、
 Neovim（LazyVim）、Claude Code CLI、Codex CLI,以及一个预装好 FlagGems 的
 Python 环境——差异只体现在各自需要接入哪些设备文件、内核驱动和工具链。
 
@@ -30,6 +31,7 @@ FlagGemsTerminalDevContainer/
 ├── ascend-910c/start.sh   # Ascend 910C 启动脚本 —— 平台逻辑相同，910C 专用 base 镜像
 ├── ascend-vllm/start.sh   # 基于上游 vllm-ascend 镜像的 Ascend 启动脚本
 ├── ascend-vllm-910c/start.sh  # vllm-ascend 镜像，Atlas A3（16 卡）变体
+├── dcu-vllm/start.sh      # 基于上游 vllm 镜像的海光 DCU 启动脚本
 ├── metax/start.sh         # Metax 启动脚本
 ├── iluvatar/start.sh      # Iluvatar 启动脚本
 ├── mthreads/start.sh      # 摩尔线程启动脚本

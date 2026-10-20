@@ -22,9 +22,13 @@
 # (pkg.flytiger-eco.com/docker_release/pytorch), bypassing the
 # flagos-base-<PLATFORM>-<TOOLKIT> naming above — see thead/start.sh.
 #
+# dcu-vllm reuses PLATFORM=hygon (same device files, groups, and apt
+# packages) but bypasses the flagos-base naming the same way, pointing at
+# the upstream Hygon DCU vllm image instead — see dcu-vllm/start.sh.
+#
 # Usage: built and launched via nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
 #        ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh,
-#        kunlunxin/start.sh, or thead/start.sh
+#        kunlunxin/start.sh, dcu-vllm/start.sh, or thead/start.sh
 # ============================================================
 
 ARG PLATFORM=nvidia
