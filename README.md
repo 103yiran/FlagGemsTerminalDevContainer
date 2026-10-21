@@ -41,7 +41,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./ascend-910c/start.sh  # Ascend 910C
 ./ascend-vllm/start.sh      # Ascend, vllm-ascend base image
 ./ascend-vllm-910c/start.sh # Ascend, vllm-ascend base image, Atlas A3
-./dcu-vllm/start.sh     # Hygon DCU, vllm base image
+./hygon-vllm/start.sh   # Hygon DCU, vllm base image
 ./metax/start.sh        # Metax
 ./iluvatar/start.sh     # Iluvatar
 ./mthreads/start.sh     # Moore Threads

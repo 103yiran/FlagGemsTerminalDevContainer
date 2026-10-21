@@ -35,7 +35,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./ascend-910c/start.sh  # Ascend 910C
 ./ascend-vllm/start.sh      # Ascend，vllm-ascend base 镜像
 ./ascend-vllm-910c/start.sh # Ascend，vllm-ascend base 镜像，Atlas A3
-./dcu-vllm/start.sh     # 海光 DCU，vllm base 镜像
+./hygon-vllm/start.sh   # 海光 DCU，vllm base 镜像
 ./metax/start.sh        # Metax
 ./iluvatar/start.sh     # Iluvatar
 ./mthreads/start.sh     # 摩尔线程（Moore Threads）

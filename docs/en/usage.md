@@ -11,7 +11,7 @@ Every launcher shares the same flag set, parsed by `common/lib.sh`'s
 | `-n NAME` / `--name NAME` | Container name (default: `flaggems-<platform>-dev-<username>`). |
 | `-f` / `--force` | Delete and recreate the container (does not touch the image). |
 | `--rebuild-dev` / `--rebuild` | Force-rebuild the dev image (equivalent flags). |
-| `--repo PATH` | Mount a repository at `/workspace/<basename>`. Repeatable; the working directory is set to the *first* `--repo` path. Default: `../FlagGems` (or `../FlagGems-vllm` for the `ascend-vllm`/`ascend-vllm-910c`/`dcu-vllm` launchers). |
+| `--repo PATH` | Mount a repository at `/workspace/<basename>`. Repeatable; the working directory is set to the *first* `--repo` path. Default: `../FlagGems` (or `../FlagGems-vllm` for the `ascend-vllm`/`ascend-vllm-910c`/`hygon-vllm` launchers). |
 | `-c CMD` / `--cmd CMD` | Command to `docker exec` into the container (default: `zsh`). Word-split, so quote multi-word commands: `-c "python train.py"`. |
 | `--ssh-agent` | Use SSH agent forwarding instead of mounting `~/.ssh` into the container. |
 | `--base-tag VERSION` | Override the FlagOS base image tag. |
@@ -42,8 +42,8 @@ inline before calling `start.sh`:
 | Variable | Platforms | Effect |
 |----------|-----------|--------|
 | `BASE_IMAGE_TAG` | all | Same as `--base-tag`, settable as an env var instead. |
-| `TOOLKIT_VERSION` | all except `ascend-vllm*`/`dcu-vllm`/`thead` | Overrides the toolkit version baked into the default `flagos-runtime-<platform>-<toolkit>` image name. |
-| `BASE_IMAGE_NAME` / `BASE_IMAGE_REGISTRY` | `nvidia`, `thead`, `ascend-910c`, `ascend-vllm`, `ascend-vllm-910c`, `dcu-vllm` | Overrides the base image reference entirely, for platforms whose image doesn't follow the `flagos-runtime-<platform>-<toolkit>` naming. |
+| `TOOLKIT_VERSION` | all except `ascend-vllm*`/`hygon-vllm`/`thead` | Overrides the toolkit version baked into the default `flagos-runtime-<platform>-<toolkit>` image name. |
+| `BASE_IMAGE_NAME` / `BASE_IMAGE_REGISTRY` | `nvidia`, `thead`, `ascend-910c`, `ascend-vllm`, `ascend-vllm-910c`, `hygon-vllm` | Overrides the base image reference entirely, for platforms whose image doesn't follow the `flagos-runtime-<platform>-<toolkit>` naming. |
 | `NSIGHT_COMPUTE_VERSION` | `nvidia` | Pins/upgrades the Nsight Compute apt package installed after container start — see `nvidia/install-nsight-compute.sh`. |
 | `DEV_IMAGE` / `CONTAINER_NAME` | all | Override the computed defaults directly, if you need a name `-n`/`--name` can't express (rare). |
 
@@ -55,7 +55,7 @@ NSIGHT_COMPUTE_VERSION=2026.4.0 ./nvidia/start.sh
 BASE_IMAGE_TAG=v0.27.0rc1 ./ascend-vllm/start.sh
 
 # Use a different DCU vllm image tag
-BASE_IMAGE_TAG=0.22.0-ubuntu22.04-dtk2604-py3.10 ./dcu-vllm/start.sh
+BASE_IMAGE_TAG=0.22.0-ubuntu22.04-dtk2604-py3.10 ./hygon-vllm/start.sh
 ```
 
 ## 3. Launching each platform
@@ -68,7 +68,7 @@ BASE_IMAGE_TAG=0.22.0-ubuntu22.04-dtk2604-py3.10 ./dcu-vllm/start.sh
 ./ascend-910c/start.sh
 ./ascend-vllm/start.sh
 ./ascend-vllm-910c/start.sh
-./dcu-vllm/start.sh
+./hygon-vllm/start.sh
 ./metax/start.sh
 ./iluvatar/start.sh
 ./mthreads/start.sh

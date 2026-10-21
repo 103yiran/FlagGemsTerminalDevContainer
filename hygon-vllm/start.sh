@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dcu-vllm/start.sh — launch the FlagGems DCU dev container on the
+# hygon-vllm/start.sh — launch the FlagGems DCU dev container on the
 # Hygon DCU vllm base image.
 #
 # Base image:  harbor.sourcefind.cn:5443/hcu/admin/base/vllm:0.21.0-ubuntu22.04-dtk2604-py3.10
@@ -16,7 +16,7 @@
 # vllm image rather than FlagOS's flagos-runtime naming. Keep the two hygon*
 # start.sh files in sync when shared platform logic changes.
 #
-# Options and examples:  ./dcu-vllm/start.sh --help
+# Options and examples:  ./hygon-vllm/start.sh --help
 # Host requirements: export http_proxy/https_proxy if GitHub/GitCode are
 # not directly reachable (common/lib.sh forwards them into the container);
 # an SSH key registered on GitCode is an optional extra fallback.
@@ -53,7 +53,7 @@ BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-0.21.0-ubuntu22.04-dtk2604-py3.10}"
 
 # Distinct dev image / default container name so a vllm-dcu container never
 # collides with hygon/start.sh on the same host. Named vllm-dcu (vllm prefix)
-# rather than dcu-vllm to match the FlagGems-vllm repo checkout this launcher
+# rather than hygon-vllm to match the FlagGems-vllm repo checkout this launcher
 # mounts by default.
 DEV_IMAGE="${DEV_IMAGE:-flaggems-vllm-dcu:dev}"
 CONTAINER_NAME="${CONTAINER_NAME:-flaggems-vllm-dcu-dev-$(id -un)}"
