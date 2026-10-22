@@ -361,7 +361,7 @@ sed -i \
 PLATFORM='${PLATFORM}'
 apt-get update
 apt-get install -y --no-install-recommends \
-    sudo zsh git curl wget unzip ca-certificates ripgrep fd-find gh openssh-client \
+    sudo zsh git curl wget unzip ca-certificates ripgrep fd-find gh openssh-client squashfs-tools \
     \$([ \"\$PLATFORM\" = 'nvidia' -o \"\$PLATFORM\" = 'thead' ] && echo 'python3-pip clang-format')
 if [ \"\$PLATFORM\" = 'nvidia' -o \"\$PLATFORM\" = 'thead' ]; then
     /usr/bin/pip3 install --no-cache-dir --break-system-packages \
@@ -502,7 +502,115 @@ if ! \$_npm_installed; then
     exit 1
 fi
 
-# Layer 6: make zsh load /etc/profile.d/*.sh (e.g. Hygon's vendor.sh, which
+# Layer 6: Antigravity CLI (agy)
+#
+# amd64: pulled from the Snap Store API directly (api.snapcraft.io), bypassing
+# snapd/snap-confine entirely — this container has no systemd/init, and
+# `snap install` fails here with \"cannot mount squashfs image\" because
+# mounting a squashfs filesystem needs privileges this container doesn't
+# have. Instead we download the raw .snap (itself just a squashfs image) and
+# unsquashfs it — a plain filesystem extraction, no mount(2) call involved —
+# then lift out bin/agy. Confirmed by `ldd` that it only depends on standard
+# glibc libs (libc/libm/libpthread/libdl/librt/libresolv), so the extracted
+# binary runs standalone with no need to carry along the snap's bundled
+# $SNAP/usr/lib tree.
+#
+# arm64 (e.g. Ascend hosts): the antigravity-cli snap only publishes an amd64
+# build (confirmed via the same API — its channel-map has no arm64 entry), so
+# arm64 falls back to the upstream release tarball instead, tried against two
+# sources in order (SourceForge mirror, then the GitHub release — the two
+# publish an identically named agy_cli_linux_arm64.tar.gz asset).
+#
+# Both paths verify the download before trusting it — a stalled connection
+# can deliver a truncated squashfs/gzip stream that curl still reports as a
+# 200 with partial bytes (seen in practice on both the Snap Store and GitHub
+# downloads). `unsquashfs -l` / `tar -tzf` list the archive without
+# extracting, which is enough to detect truncation; on failure the attempt is
+# retried rather than installing a half-written binary.
+_agy_install_from_snap() {
+    # https://api.snapcraft.io/v2/snaps/info/antigravity-cli — queried ahead of
+    # time; the download URL embeds a revision number that changes on every
+    # new release, so this is pinned to a known-good revision rather than
+    # re-resolved at build time (one more moving part that could 404/stall).
+    local _url='https://api.snapcraft.io/api/v1/snaps/download/a69HKQpMLI0QanHLIkvLKIJOXFLxCTze_23.snap'
+    local _try
+    for _try in 1 2 3; do
+        rm -f /tmp/agy_cli.snap
+        if timeout 240 curl -fsSL --connect-timeout 15 --max-time 240 \
+            \"\${_url}\" -o /tmp/agy_cli.snap \
+            && [ -s /tmp/agy_cli.snap ] \
+            && unsquashfs -l /tmp/agy_cli.snap > /dev/null 2>&1; then
+            rm -rf /tmp/agy_snap_extract
+            if unsquashfs -d /tmp/agy_snap_extract /tmp/agy_cli.snap > /dev/null 2>&1 \
+                && [ -f /tmp/agy_snap_extract/bin/agy ]; then
+                install -m 0755 /tmp/agy_snap_extract/bin/agy /usr/local/bin/agy
+                rm -rf /tmp/agy_cli.snap /tmp/agy_snap_extract
+                return 0
+            fi
+            echo 'WARNING: antigravity-cli .snap extracted but bin/agy not found' >&2
+            rm -rf /tmp/agy_cli.snap /tmp/agy_snap_extract
+            return 1
+        fi
+        echo \"antigravity-cli .snap download attempt \${_try}/3 failed, stalled, or produced a truncated image — retrying...\"
+        sleep 5
+    done
+    rm -f /tmp/agy_cli.snap
+    return 1
+}
+_agy_install_from_tarball() {
+    local _arch='arm64'
+    local _version='1.4.4'
+    local _filename=\"agy_cli_linux_\${_arch}.tar.gz\"
+    local _sources=(
+        \"https://sourceforge.net/projects/antigravity-cli.mirror/files/\${_version}/\${_filename}/download\"
+        \"https://github.com/google-antigravity/antigravity-cli/releases/download/\${_version}/\${_filename}\"
+    )
+    local _url _try
+    for _url in \"\${_sources[@]}\"; do
+        for _try in 1 2 3; do
+            rm -f /tmp/agy_cli.tar.gz
+            if timeout 90 curl -fsSL --connect-timeout 15 --max-time 90 \
+                \"\${_url}\" -o /tmp/agy_cli.tar.gz \
+                && [ -s /tmp/agy_cli.tar.gz ] \
+                && tar -tzf /tmp/agy_cli.tar.gz > /dev/null 2>&1; then
+                rm -rf /tmp/agy_cli_extract
+                mkdir -p /tmp/agy_cli_extract
+                if tar -xzf /tmp/agy_cli.tar.gz -C /tmp/agy_cli_extract; then
+                    local _bin
+                    _bin=\$(find /tmp/agy_cli_extract -maxdepth 3 -type f -name 'agy' | head -1)
+                    if [ -n \"\$_bin\" ]; then
+                        install -m 0755 \"\$_bin\" /usr/local/bin/agy
+                        rm -rf /tmp/agy_cli.tar.gz /tmp/agy_cli_extract
+                        return 0
+                    fi
+                    echo 'WARNING: antigravity-cli tarball extracted but agy binary not found' >&2
+                fi
+                rm -rf /tmp/agy_cli.tar.gz /tmp/agy_cli_extract
+                return 1
+            fi
+            echo \"antigravity-cli download attempt \${_try}/3 from \${_url} failed, stalled, or produced a truncated archive — retrying...\"
+            sleep 5
+        done
+    done
+    rm -f /tmp/agy_cli.tar.gz
+    return 1
+}
+
+_agy_arch_raw=\$(uname -m)
+if [ \"\$_agy_arch_raw\" = 'x86_64' ]; then
+    _agy_ok=false
+    _agy_install_from_snap && _agy_ok=true
+else
+    _agy_ok=false
+    _agy_install_from_tarball && _agy_ok=true
+fi
+if \$_agy_ok; then
+    echo \"antigravity-cli installed: \$(/usr/local/bin/agy --version 2>&1 | head -1)\"
+else
+    echo 'WARNING: antigravity-cli install failed — skipping' >&2
+fi
+
+# Layer 7: make zsh load /etc/profile.d/*.sh (e.g. Hygon's vendor.sh, which
 # sets LD_LIBRARY_PATH/PATH for DTK). bash picks these up via BASH_ENV, but
 # zsh has no equivalent, and zsh is the default EXEC_COMMAND — without this,
 # runtime libs like libgalaxyhip.so.5 aren't found under zsh.
