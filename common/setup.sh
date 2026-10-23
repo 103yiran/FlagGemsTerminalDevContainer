@@ -328,6 +328,14 @@ return {
     "LazyVim/LazyVim",
     opts = {
       colorscheme = function()
+        -- IMPORTANT: when `colorscheme` is a function, LazyVim calls it
+        -- *instead of* vim.cmd.colorscheme() — it ignores any return value
+        -- (see LazyVim/lua/lazyvim/config/init.lua). The function must load
+        -- the theme itself, or no colorscheme is ever applied: nvim silently
+        -- stays on the bare `default` scheme, which is what caused the
+        -- invisible-cursor / low-contrast symptom.
+        vim.cmd.colorscheme("tokyonight")
+
         -- Apply after any colorscheme loads
         vim.api.nvim_create_autocmd("ColorScheme", {
           pattern = "*",
