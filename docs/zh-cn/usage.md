@@ -10,7 +10,7 @@
 | `-n NAME` / `--name NAME` | 容器名称（默认：`flaggems-<platform>-dev-<用户名>`）。 |
 | `-f` / `--force` | 删除并重建容器（不会影响镜像）。 |
 | `--rebuild-dev` / `--rebuild` | 强制重新构建 dev 镜像（两者等价）。 |
-| `--repo PATH` | 挂载一个仓库到 `/workspace/<basename>`。可重复使用；工作目录会设为*第一个* `--repo` 路径。默认：`../FlagGems`（`ascend-vllm`/`ascend-vllm-910c`/`hygon-vllm` 默认是 `../FlagGems-vllm`）。 |
+| `--repo PATH` | 挂载一个仓库到 `/workspace/<basename>`。可重复使用；工作目录会设为*第一个* `--repo` 路径。默认：`../FlagGems`（`ascend-vllm`/`ascend-vllm-910c`/`hygon-vllm`/`nvidia-vllm` 默认是 `../FlagGems-vllm`）。 |
 | `-c CMD` / `--cmd CMD` | `docker exec` 进容器时执行的命令（默认：`zsh`）。会按空格分词,多词命令要加引号：`-c "python train.py"`。 |
 | `--ssh-agent` | 使用 SSH agent 转发,而不是挂载 `~/.ssh` 进容器。 |
 | `--base-tag VERSION` | 覆盖 FlagOS base 镜像的 tag。 |
@@ -41,9 +41,9 @@ export 或内联设置：
 | 变量 | 适用平台 | 作用 |
 |------|---------|------|
 | `BASE_IMAGE_TAG` | 全部 | 与 `--base-tag` 相同,改为用环境变量设置。 |
-| `TOOLKIT_VERSION` | 除 `ascend-vllm*`/`hygon-vllm`/`thead` 之外的全部 | 覆盖默认 `flagos-runtime-<platform>-<toolkit>` 镜像名里的工具链版本。 |
-| `BASE_IMAGE_NAME` / `BASE_IMAGE_REGISTRY` | `nvidia`、`thead`、`ascend-910c`、`ascend-vllm`、`ascend-vllm-910c`、`hygon-vllm` | 对于 base 镜像不遵循 `flagos-runtime-<platform>-<toolkit>` 命名的平台,完全覆盖镜像引用。 |
-| `NSIGHT_COMPUTE_VERSION` | `nvidia` | 固定/升级容器启动后安装的 Nsight Compute apt 包版本——见 `nvidia/install-nsight-compute.sh`。 |
+| `TOOLKIT_VERSION` | 除 `ascend-vllm*`/`hygon-vllm`/`nvidia-vllm`/`thead` 之外的全部 | 覆盖默认 `flagos-runtime-<platform>-<toolkit>` 镜像名里的工具链版本。 |
+| `BASE_IMAGE_NAME` / `BASE_IMAGE_REGISTRY` | `nvidia`、`nvidia-vllm`、`thead`、`ascend-910c`、`ascend-vllm`、`ascend-vllm-910c`、`hygon-vllm` | 对于 base 镜像不遵循 `flagos-runtime-<platform>-<toolkit>` 命名的平台,完全覆盖镜像引用。 |
+| `NSIGHT_COMPUTE_VERSION` | `nvidia`、`nvidia-vllm` | 固定/升级容器启动后安装的 Nsight Compute apt 包版本——见 `nvidia/install-nsight-compute.sh`。 |
 | `DEV_IMAGE` / `CONTAINER_NAME` | 全部 | 直接覆盖计算出的默认值,用于 `-n`/`--name` 表达不了的命名需求（少见）。 |
 
 ```bash
@@ -68,6 +68,7 @@ BASE_IMAGE_TAG=0.22.0-ubuntu22.04-dtk2604-py3.10 ./hygon-vllm/start.sh
 ./ascend-vllm/start.sh
 ./ascend-vllm-910c/start.sh
 ./hygon-vllm/start.sh
+./nvidia-vllm/start.sh
 ./metax/start.sh
 ./iluvatar/start.sh
 ./mthreads/start.sh
@@ -94,7 +95,7 @@ BASE_IMAGE_TAG=0.22.0-ubuntu22.04-dtk2604-py3.10 ./hygon-vllm/start.sh
 | 编辑器 | Neovim ≥ 0.11（LazyVim,首次启动时自动同步插件） |
 | Python | `/flagos` 虚拟环境,已安装 FlagGems 及依赖（由 base 镜像提供） |
 | 代码质量 | `pre-commit`、`flake8`、`black`、`isort`、`clang-format`（仅 NVIDIA 和平头哥） |
-| AI 工具 | Claude Code CLI（`claude`）、Codex CLI（`codex`）；Ascend 额外安装了[cannbot 插件](ascend.md#5-cannbot-插件) |
+| AI 工具 | Claude Code CLI（`claude`）、Codex CLI（`codex`）、CodeBuddy Code CLI（`codebuddy`）；Ascend 额外安装了[cannbot 插件](ascend.md#5-cannbot-插件) |
 | 其他 | `ripgrep`、`fd`、`gh`（GitHub CLI）、`sudo`（无密码） |
 | 性能分析 | NVIDIA Nsight Compute（`ncu`），仅 NVIDIA |
 

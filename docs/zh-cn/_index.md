@@ -15,7 +15,7 @@
   六个镜像层）、`platform_*` 钩子约定,以及 `common/setup.sh` 的
   zsh/Neovim 初始化流程及其网络兜底链路。
 - [平台参考](platforms.md) —— 按后端逐一列出：base 镜像、设备文件、用户组、
-  额外挂载,以及 14 个启动脚本各自使用的钩子。
+  额外挂载,以及 15 个启动脚本各自使用的钩子。
 - [Ascend 专题](ascend.md) —— 深入讲解 4 个 Ascend 变体（`ascend`、
   `ascend-910c`、`ascend-vllm`、`ascend-vllm-910c`）：driver 烘焙、
   `HwHiAiUser` 权限模型、仅 root 可用 NPU 的限制,以及 cannbot 插件安装。

@@ -133,8 +133,8 @@ sudo ascend-refresh-env
 
 4 个 Ascend 启动脚本都会在构建 dev 镜像时安装一组
 [cannbot](https://www.npmjs.com/package/@cannbot-plugin/cannbot) 插件,
-叠加在 `common/lib.sh` 构建第 5 层已经为所有平台安装好的 Claude Code 和
-Codex CLI 之上。这一步是 `platform_post_build_exec` 的一部分,自动完成,
+叠加在 `common/lib.sh` 构建第 5 层已经为所有平台安装好的 Claude Code、
+Codex 和 CodeBuddy Code CLI 之上。这一步是 `platform_post_build_exec` 的一部分,自动完成,
 不需要额外参数——对每个插件、每个 tool 分别执行：
 
 ```bash

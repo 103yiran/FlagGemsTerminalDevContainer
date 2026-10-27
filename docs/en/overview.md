@@ -4,10 +4,11 @@
 
 FlagGemsTerminalDevContainer is a set of launcher scripts that spin up a
 terminal-based development container for [FlagGems](https://github.com/FlagOpen/FlagGems)
-contributors, one per supported hardware platform: NVIDIA, Hygon (plain and
-vllm variants), Cambricon, Ascend (four variants), Metax, Iluvatar, Moore
-Threads, Kunlunxin, and T-Head. Every platform shares the same container shape — zsh + oh-my-zsh,
-Neovim (LazyVim), Claude Code CLI, Codex CLI, and a FlagGems-ready Python
+contributors, one per supported hardware platform: NVIDIA (plain and vllm
+variants), Hygon (plain and vllm variants), Cambricon, Ascend (four
+variants), Metax, Iluvatar, Moore Threads, Kunlunxin, and T-Head. Every
+platform shares the same container shape — zsh + oh-my-zsh,
+Neovim (LazyVim), Claude Code CLI, Codex CLI, CodeBuddy Code CLI, and a FlagGems-ready Python
 environment — and differs only in which device files, kernel driver, and
 toolkit get wired in.
 
@@ -27,6 +28,7 @@ FlagGemsTerminalDevContainer/
 ├── nvidia/
 │   ├── start.sh                    # NVIDIA launcher — sources common/lib.sh
 │   └── install-nsight-compute.sh   # installs Nsight Compute (ncu) post-launch
+├── nvidia-vllm/start.sh   # NVIDIA launcher on the upstream vllm image
 ├── hygon/start.sh         # Hygon launcher
 ├── cambricon/start.sh     # Cambricon launcher
 ├── ascend/start.sh        # Ascend (910B) launcher

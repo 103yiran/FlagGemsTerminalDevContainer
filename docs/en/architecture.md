@@ -43,9 +43,9 @@ Each layer runs as one `docker exec` into the throwaway build container
    to 3 times with bounded `--max-time` (a stalled proxy can leave a TCP
    connection open with zero bytes moving, which plain `--connect-timeout`
    does not catch).
-5. **Node.js + Claude Code CLI + Codex CLI.** Downloads the Node 22.23.1
-   tarball from `mirrors.aliyun.com/nodejs-release`, then
-   `npm install -g @anthropic-ai/claude-code @openai/codex` via
+5. **Node.js + Claude Code CLI + Codex CLI + CodeBuddy Code CLI.** Downloads
+   the Node 22.23.1 tarball from `mirrors.aliyun.com/nodejs-release`, then
+   `npm install -g @anthropic-ai/claude-code @openai/codex @tencent-ai/codebuddy-code` via
    `registry.npmmirror.com`, with the same retry/timeout treatment (npm does
    not reliably react to `SIGTERM` while blocked on a stalled fetch, so the
    outer `timeout --kill-after=10` follows up with `SIGKILL`).
@@ -59,8 +59,11 @@ Each layer runs as one `docker exec` into the throwaway build container
 After layer 6, if the platform defined `platform_post_build_exec`, it runs
 next (still inside the build container, still as root), then the container
 is committed as `flaggems-<platform>:dev` with `ENV UV_CACHE_DIR=...`,
-`USER <username>`, `WORKDIR /workspace`, and (NVIDIA only) a `PATH` change
-that prepends `/flagos/bin` to whatever the base image already set.
+`USER <username>`, `WORKDIR /workspace`, and, if `PLATFORM` is `nvidia` *and*
+`/flagos` actually exists in the build container, a `PATH` change that
+prepends `/flagos/bin` to whatever the base image already set. The second
+condition excludes `nvidia-vllm`, which also sets `PLATFORM="nvidia"` but
+builds from an upstream NGC image with no `/flagos` venv.
 
 ## 3. The `platform_*` hook contract
 
@@ -88,13 +91,15 @@ for who uses which):
   function right after `_parse_args` (Hygon, Iluvatar, Moore Threads).
 - **Non-default base image naming.** `common/lib.sh` defaults
   `BASE_IMAGE_NAME` to `${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION}`.
-  Platforms whose base image doesn't follow that naming (NVIDIA, T-Head,
-  Ascend 910C, Ascend vllm variants) set `BASE_IMAGE_REGISTRY`/`BASE_IMAGE_NAME`/`BASE_IMAGE_TAG`
-  themselves *before* sourcing `common/lib.sh`.
+  Platforms whose base image doesn't follow that naming (NVIDIA, NVIDIA vllm,
+  T-Head, Ascend 910C, Ascend vllm variants, Hygon vllm) set
+  `BASE_IMAGE_REGISTRY`/`BASE_IMAGE_NAME`/`BASE_IMAGE_TAG` themselves *before*
+  sourcing `common/lib.sh`.
 - **Post-container-start steps.** A launcher that needs to run something
   once the long-lived container is actually up (not at image-build time)
-  wraps `_run_container` the same way NVIDIA does for `install-nsight-compute.sh`,
-  or Ascend does for its device-permission and shell-env injection steps.
+  wraps `_run_container` the same way NVIDIA (and NVIDIA vllm, which copies
+  the same wrapper) does for `install-nsight-compute.sh`, or Ascend does for
+  its device-permission and shell-env injection steps.
 
 ## 4. `common/setup.sh`: what happens inside a fresh container
 

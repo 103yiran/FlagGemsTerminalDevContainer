@@ -1,6 +1,6 @@
 # Platforms
 
-A side-by-side reference for all 14 launchers. See [Architecture](architecture.md)
+A side-by-side reference for all 15 launchers. See [Architecture](architecture.md)
 for what each hook actually does, and [Ascend](ascend.md) for a deeper look
 at the four Ascend variants specifically.
 
@@ -9,6 +9,7 @@ at the four Ascend variants specifically.
 | Launcher | `PLATFORM` | Base image | Toolkit | Dev image / default container name |
 |----------|-----------|------------|---------|--------------------------------------|
 | `nvidia/start.sh` | `nvidia` | `harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-13.3:2.2.0-0.3.0` | `cuda13.3` | `flaggems-nvidia:dev` / `flaggems-nvidia-dev-<user>` |
+| `nvidia-vllm/start.sh` | `nvidia` | `nvcr.io/nvidia/vllm:26.10.pre1-py3` | n/a (upstream image) | `flaggems-vllm-nvidia:dev` / `flaggems-vllm-nvidia-dev-<user>` |
 | `hygon/start.sh` | `hygon` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.2` | `dtk26.04` | `flaggems-hygon:dev` / `flaggems-hygon-dev-<user>` |
 | `hygon-vllm/start.sh` | `hygon` | `harbor.sourcefind.cn:5443/hcu/admin/base/vllm:0.21.0-ubuntu22.04-dtk2604-py3.10` | n/a (upstream image) | `flaggems-vllm-dcu:dev` / `flaggems-vllm-dcu-dev-<user>` |
 | `cambricon/start.sh` | `cambricon` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2` | `neuware4.7.2` | `flaggems-cambricon:dev` / `flaggems-cambricon-dev-<user>` |
@@ -28,13 +29,15 @@ share the Dockerfile's apt-package and group-creation branch, and
 themselves purely via `BASE_IMAGE_NAME`/`BASE_IMAGE_TAG` and distinct
 `DEV_IMAGE`/`CONTAINER_NAME` overrides, never by changing `PLATFORM` itself.
 `hygon-vllm/start.sh` follows the same pattern with `PLATFORM="hygon"` against
-the upstream Hygon DCU vllm image.
+the upstream Hygon DCU vllm image. `nvidia-vllm/start.sh` follows the same
+pattern with `PLATFORM="nvidia"` against the upstream NVIDIA NGC vllm image.
 
 ## 2. Hardware access: devices, groups, mounts, hooks
 
 | Launcher | Device files (`platform_hardware_args`) | Extra `docker run` flags | Groups (`platform_user_groups`) | Extra host mounts | Build-time hooks |
 |----------|------------------------------------------|---------------------------|----------------------------------|--------------------|---------------------|
 | `nvidia` | — (`--gpus all` handles device exposure) | `--gpus all`, `--ulimit nofile=1048576:1048576` | — | — | — (post-*container-start* hook: `install-nsight-compute.sh`) |
+| `nvidia-vllm` | same as `nvidia` | same as `nvidia` | — | — | — (post-*container-start* hook: `install-nsight-compute.sh`, same as `nvidia`) |
 | `hygon` | `/dev/kfd`, `/dev/mkfd`, `/dev/dri` | `--group-add video`, `--group-add 39`, `--privileged` | — | `/opt/hyhal` | — |
 | `hygon-vllm` | same as `hygon` | same as `hygon` | — | `/opt/hyhal` | — |
 | `cambricon` | `/dev/cambricon_dev0`–`7`, `/dev/cambricon_ctl` | — | — | — | — |
@@ -75,7 +78,7 @@ instead.
 ## 4. Launchers that wrap `lib_main` vs. just calling it
 
 Most launchers end with a plain `lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"`
-call. Five wrap it (or `_run_container`) instead, because they need to act
+call. Seven wrap it (or `_run_container`) instead, because they need to act
 at a point the hook contract doesn't cover directly:
 
 - **`hygon`, `hygon-vllm`, `iluvatar`, `mthreads`** — each defines a
@@ -90,8 +93,10 @@ at a point the hook contract doesn't cover directly:
   body, avoiding infinite recursion from name-based aliasing) to patch mounts
   *and* run device-permission setup, shell-env injection, and a conditional
   container restart after the container is created.
-- **`nvidia`** — wraps `_run_container` the same way, but only to invoke
-  `install-nsight-compute.sh` once the container is confirmed running.
+- **`nvidia`, `nvidia-vllm`** — each wraps `_run_container` the same way, but
+  only to invoke `install-nsight-compute.sh` once the container is confirmed
+  running. `nvidia-vllm` copies `nvidia`'s wrapper verbatim — same GPU
+  hardware, just a different (upstream vllm) base image.
 
 ## 5. Known per-platform limitations
 
@@ -100,7 +105,8 @@ at a point the hook contract doesn't cover directly:
   when group membership and device permissions are entirely correct. See
   [Ascend §3](ascend.md#3-why-npu-access-is-usually-root-only) for the full
   explanation and the `docker exec -u root` workaround.
-- **`ascend-vllm` / `ascend-vllm-910c` / `hygon-vllm`**: default to mounting a
-  `../FlagGems-vllm` sibling checkout rather than plain FlagGems (use
-  `--repo` to override), since the upstream vllm-ascend / DCU vllm image's
-  Python environment is tuned for the vLLM integration path.
+- **`ascend-vllm` / `ascend-vllm-910c` / `hygon-vllm` / `nvidia-vllm`**:
+  default to mounting a `../FlagGems-vllm` sibling checkout rather than plain
+  FlagGems (use `--repo` to override), since the upstream vllm-ascend / DCU
+  vllm / NVIDIA vllm image's Python environment is tuned for the vLLM
+  integration path.

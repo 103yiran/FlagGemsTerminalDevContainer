@@ -26,9 +26,13 @@
 # packages) but bypasses the flagos-base naming the same way, pointing at
 # the upstream Hygon DCU vllm image instead — see hygon-vllm/start.sh.
 #
+# nvidia-vllm reuses PLATFORM=nvidia (same --gpus all and apt/pip packages)
+# the same way, pointing at the upstream NVIDIA NGC vllm image instead of
+# flagos-app/vllm0.24.0-generic-13.3 — see nvidia-vllm/start.sh.
+#
 # Usage: built and launched via nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
 #        ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh,
-#        kunlunxin/start.sh, hygon-vllm/start.sh, or thead/start.sh
+#        kunlunxin/start.sh, hygon-vllm/start.sh, nvidia-vllm/start.sh, or thead/start.sh
 # ============================================================
 
 ARG PLATFORM=nvidia
@@ -129,7 +133,7 @@ RUN apt-get update \
     && nvim --version | head -1
 
 # ------------------------------------------------------------------
-# Claude Code CLI + Codex CLI — Node.js from Aliyun mirror + npm via npmmirror
+# Claude Code CLI + Codex CLI + CodeBuddy Code CLI — Node.js from Aliyun mirror + npm via npmmirror
 #
 # --max-time/timeout bound each node-download attempt and retry a few times:
 # on a flaky proxy the TCP connection can stay open with zero bytes moving
@@ -155,7 +159,7 @@ RUN for i in 1 2 3; do \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
     && for i in 1 2 3; do \
-        timeout --kill-after=10 180 npm install -g @anthropic-ai/claude-code @openai/codex \
+        timeout --kill-after=10 180 npm install -g @anthropic-ai/claude-code @openai/codex @tencent-ai/codebuddy-code \
             --registry https://registry.npmmirror.com \
             --fetch-timeout=60000 --fetch-retries=2 \
             --fetch-retry-mintimeout=5000 --fetch-retry-maxtimeout=15000 && break; \

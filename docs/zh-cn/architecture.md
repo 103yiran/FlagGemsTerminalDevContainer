@@ -38,10 +38,10 @@
    `LatestRelease` 压缩包,失败时重试最多 3 次,并用有限的 `--max-time`
    限制每次尝试（在不稳定的代理环境下,TCP 连接可能已经建立但没有任何
    数据传输,单纯的 `--connect-timeout` 捕捉不到这种情况）。
-5. **Node.js + Claude Code CLI + Codex CLI。** 从
+5. **Node.js + Claude Code CLI + Codex CLI + CodeBuddy Code CLI。** 从
    `mirrors.aliyun.com/nodejs-release` 下载 Node 22.23.1 压缩包,然后通过
    `registry.npmmirror.com` 执行
-   `npm install -g @anthropic-ai/claude-code @openai/codex`,同样采用
+   `npm install -g @anthropic-ai/claude-code @openai/codex @tencent-ai/codebuddy-code`,同样采用
    重试+超时的保护（npm 在卡住的网络请求上并不会可靠地响应 `SIGTERM`,
    所以外层的 `timeout --kill-after=10` 会在超时后补发 `SIGKILL`）。
 6. **让 zsh 加载 `/etc/profile.d`。** 在 `/etc/zsh/zshenv` 里追加一段
@@ -54,8 +54,11 @@
 第 6 层执行完后,如果平台定义了 `platform_post_build_exec`,会接着执行
 （同样是在构建容器内,以 root 身份）,然后容器被 commit 成
 `flaggems-<platform>:dev`,附带 `ENV UV_CACHE_DIR=...`、
-`USER <username>`、`WORKDIR /workspace`,以及（仅 NVIDIA）一个把
-`/flagos/bin` 前置到 base 镜像原有 `PATH` 前面的改动。
+`USER <username>`、`WORKDIR /workspace`,以及——当 `PLATFORM` 是
+`nvidia` *且* 构建容器里确实存在 `/flagos` 时——一个把 `/flagos/bin`
+前置到 base 镜像原有 `PATH` 前面的改动。第二个条件把 `nvidia-vllm`
+排除在外：它同样设置 `PLATFORM="nvidia"`,但构建自一个没有 `/flagos`
+虚拟环境的上游 NGC 镜像。
 
 ## 3. `platform_*` 钩子约定
 
@@ -81,13 +84,13 @@
   立刻调用这个 patch 函数。
 - **非默认的 base 镜像命名。** `common/lib.sh` 默认把 `BASE_IMAGE_NAME`
   设为 `${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION}`。
-  base 镜像不遵循这个命名规则的平台（NVIDIA、平头哥、Ascend 910C、
-  Ascend vllm 系列）会在 `source common/lib.sh` *之前*自行设置
-  `BASE_IMAGE_REGISTRY`/`BASE_IMAGE_NAME`/`BASE_IMAGE_TAG`。
+  base 镜像不遵循这个命名规则的平台（NVIDIA、NVIDIA vllm、平头哥、
+  Ascend 910C、Ascend vllm 系列、Hygon vllm）会在 `source common/lib.sh`
+  *之前*自行设置 `BASE_IMAGE_REGISTRY`/`BASE_IMAGE_NAME`/`BASE_IMAGE_TAG`。
 - **容器启动之后才执行的步骤。** 需要在长期运行的容器真正启动之后
-  （而不是镜像构建时）跑点东西的启动脚本,会用 NVIDIA 对
-  `install-nsight-compute.sh` 的方式,或者 Ascend 对设备权限/shell 环境
-  注入的方式,去封装 `_run_container`。
+  （而不是镜像构建时）跑点东西的启动脚本,会用 NVIDIA（以及照搬同一套
+  封装的 NVIDIA vllm）对 `install-nsight-compute.sh` 的方式,或者 Ascend
+  对设备权限/shell 环境注入的方式,去封装 `_run_container`。
 
 ## 4. `common/setup.sh`：新容器里发生了什么
 

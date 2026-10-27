@@ -18,7 +18,7 @@ differences, and how to extend the repository with a new backend.
   and `common/setup.sh`'s zsh/Neovim bootstrap with its network fallback
   chain.
 - [Platforms](platforms.md) — a backend-by-backend reference: base image,
-  device files, groups, extra mounts, and hooks used by each of the 14
+  device files, groups, extra mounts, and hooks used by each of the 15
   launchers.
 - [Ascend](ascend.md) — a deeper look at the four Ascend variants
   (`ascend`, `ascend-910c`, `ascend-vllm`, `ascend-vllm-910c`): driver

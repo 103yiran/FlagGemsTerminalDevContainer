@@ -1,6 +1,6 @@
 # 平台参考
 
-这里横向列出全部 14 个启动脚本的差异。各钩子具体做了什么见
+这里横向列出全部 15 个启动脚本的差异。各钩子具体做了什么见
 [架构](architecture.md),4 个 Ascend 变体的深入讲解见
 [Ascend 专题](ascend.md)。
 
@@ -9,6 +9,7 @@
 | 启动脚本 | `PLATFORM` | Base 镜像 | 工具链版本 | Dev 镜像 / 默认容器名 |
 |----------|-----------|------------|-----------|------------------------|
 | `nvidia/start.sh` | `nvidia` | `harbor.baai.ac.cn/flagos-app/vllm0.24.0-generic-13.3:2.2.0-0.3.0` | `cuda13.3` | `flaggems-nvidia:dev` / `flaggems-nvidia-dev-<用户名>` |
+| `nvidia-vllm/start.sh` | `nvidia` | `nvcr.io/nvidia/vllm:26.10.pre1-py3` | 无（上游镜像） | `flaggems-vllm-nvidia:dev` / `flaggems-vllm-nvidia-dev-<用户名>` |
 | `hygon/start.sh` | `hygon` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-hygon-dtk26.04:2.1.2` | `dtk26.04` | `flaggems-hygon:dev` / `flaggems-hygon-dev-<用户名>` |
 | `hygon-vllm/start.sh` | `hygon` | `harbor.sourcefind.cn:5443/hcu/admin/base/vllm:0.21.0-ubuntu22.04-dtk2604-py3.10` | 无（上游镜像） | `flaggems-vllm-dcu:dev` / `flaggems-vllm-dcu-dev-<用户名>` |
 | `cambricon/start.sh` | `cambricon` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-cambricon-neuware4.7.2:2.1.2` | `neuware4.7.2` | `flaggems-cambricon:dev` / `flaggems-cambricon-dev-<用户名>` |
@@ -28,13 +29,15 @@
 靠各自覆盖 `BASE_IMAGE_NAME`/`BASE_IMAGE_TAG`,以及不同的
 `DEV_IMAGE`/`CONTAINER_NAME`,而不是修改 `PLATFORM` 本身。
 `hygon-vllm/start.sh` 采用同样的套路,内部设置 `PLATFORM="hygon"`,指向
-上游海光 DCU vllm 镜像。
+上游海光 DCU vllm 镜像。`nvidia-vllm/start.sh` 同样采用这个套路,内部设置
+`PLATFORM="nvidia"`,指向上游 NVIDIA NGC vllm 镜像。
 
 ## 2. 硬件访问：设备、用户组、挂载、钩子
 
 | 启动脚本 | 设备文件（`platform_hardware_args`） | 额外 `docker run` flag | 用户组（`platform_user_groups`） | 额外宿主机挂载 | 构建期钩子 |
 |----------|----------------------------------------|---------------------------|-------------------------------------|----------------|-------------|
 | `nvidia` | 无（`--gpus all` 负责设备暴露） | `--gpus all`、`--ulimit nofile=1048576:1048576` | — | — | 无（有一个容器*启动后*的钩子：`install-nsight-compute.sh`） |
+| `nvidia-vllm` | 与 `nvidia` 相同 | 与 `nvidia` 相同 | — | — | 无（有一个容器*启动后*的钩子：`install-nsight-compute.sh`,与 `nvidia` 相同） |
 | `hygon` | `/dev/kfd`、`/dev/mkfd`、`/dev/dri` | `--group-add video`、`--group-add 39`、`--privileged` | — | `/opt/hyhal` | — |
 | `hygon-vllm` | 与 `hygon` 相同 | 与 `hygon` 相同 | — | `/opt/hyhal` | — |
 | `cambricon` | `/dev/cambricon_dev0`–`7`、`/dev/cambricon_ctl` | — | — | — | — |
@@ -73,7 +76,7 @@
 ## 4. 直接调用 `lib_main` vs. 封装 `lib_main`
 
 大多数启动脚本最后都是单纯调用一次
-`lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"`。有 5 个会封装它（或者
+`lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"`。有 7 个会封装它（或者
 `_run_container`）,因为它们需要在钩子约定没有直接覆盖的某个时间点做事：
 
 - **`hygon`、`hygon-vllm`、`iluvatar`、`mthreads`** —— 各自定义一个
@@ -86,8 +89,10 @@
   一套逻辑）—— 封装 `_run_container` 本身（通过 `declare -f` 拷贝函数体,
   避免按名字别名导致的无限递归）,在容器创建之后再做挂载 patch、设备
   权限配置、shell 环境变量注入,以及有条件的容器重启。
-- **`nvidia`** —— 同样封装 `_run_container`,但只是为了在确认容器正在
-  运行之后调用一次 `install-nsight-compute.sh`。
+- **`nvidia`、`nvidia-vllm`** —— 两者都同样封装 `_run_container`,但只是
+  为了在确认容器正在运行之后调用一次 `install-nsight-compute.sh`。
+  `nvidia-vllm` 直接照搬 `nvidia` 的封装——同样的 GPU 硬件,只是换了一个
+  （上游 vllm）base 镜像。
 
 ## 5. 已知的平台限制
 
@@ -95,7 +100,7 @@
   通常仍然无法访问 NPU,这是驱动层面的 namespace 冲突导致的。完整解释和
   `docker exec -u root` 的解决办法见
   [Ascend 专题 §3](ascend.md#3-为什么-npu-访问通常只能用-root)。
-- **`ascend-vllm` / `ascend-vllm-910c` / `hygon-vllm`**：默认挂载的是
-  `../FlagGems-vllm` 这个同级目录,而不是普通的 FlagGems（可以用 `--repo`
-  覆盖）,因为上游 vllm-ascend / DCU vllm 镜像的 Python 环境是为 vLLM
-  集成路径调优过的。
+- **`ascend-vllm` / `ascend-vllm-910c` / `hygon-vllm` / `nvidia-vllm`**：
+  默认挂载的是 `../FlagGems-vllm` 这个同级目录,而不是普通的 FlagGems
+  （可以用 `--repo` 覆盖）,因为上游 vllm-ascend / DCU vllm / NVIDIA vllm
+  镜像的 Python 环境是为 vLLM 集成路径调优过的。

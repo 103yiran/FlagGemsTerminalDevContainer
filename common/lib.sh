@@ -13,8 +13,9 @@
 #                      kunlunxin/thead which set their own)
 #   BASE_IMAGE_NAME   (default: ${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION};
 #                      nvidia uses flagos-app/vllm0.24.0-generic-13.3;
-#                      ascend-910c/ascend-vllm override it for their own
-#                      non-flagos-runtime base images — see those start.sh)
+#                      ascend-910c/ascend-vllm/nvidia-vllm override it for
+#                      their own non-flagos-runtime base images — see those
+#                      start.sh)
 #   TOOLKIT_VERSION   (optional: override toolkit version, passed as TOOLKIT build-arg)
 #
 # BASE_IMAGE_NAME and BASE_IMAGE_TAG are resolved into the final reference by
@@ -487,7 +488,7 @@ rm /tmp/node.tar.xz
 #      still terminates for the next retry instead of hanging indefinitely.
 _npm_installed=false
 for _npm_try in 1 2 3; do
-    if timeout --kill-after=10 180 npm install -g @anthropic-ai/claude-code @openai/codex \
+    if timeout --kill-after=10 180 npm install -g @anthropic-ai/claude-code @openai/codex @tencent-ai/codebuddy-code \
         --registry https://registry.npmmirror.com \
         --fetch-timeout=60000 --fetch-retries=2 \
         --fetch-retry-mintimeout=5000 --fetch-retry-maxtimeout=15000; then
@@ -513,7 +514,7 @@ fi
 # then lift out bin/agy. Confirmed by `ldd` that it only depends on standard
 # glibc libs (libc/libm/libpthread/libdl/librt/libresolv), so the extracted
 # binary runs standalone with no need to carry along the snap's bundled
-# $SNAP/usr/lib tree.
+# \$SNAP/usr/lib tree.
 #
 # arm64 (e.g. Ascend hosts): the antigravity-cli snap only publishes an amd64
 # build (confirmed via the same API — its channel-map has no arm64 entry), so
@@ -632,9 +633,13 @@ fi
         # Commit the container as the dev image with metadata
         # For nvidia, prepend /flagos/bin to whatever PATH the base image already
         # has, so vllm and the /flagos venv python are reachable for all users.
-        # thead's base image has no /flagos venv, so it's excluded here.
+        # Gated on /flagos actually existing in the build container (not just
+        # PLATFORM == nvidia) — nvidia-vllm reuses PLATFORM=nvidia against
+        # nvcr.io/nvidia/vllm, an upstream image with no /flagos venv, same as
+        # thead's base image, so both are naturally excluded here.
         local _path_change=""
-        if [[ "$PLATFORM" == "nvidia" ]]; then
+        if [[ "$PLATFORM" == "nvidia" ]] \
+            && docker exec "$build_ctr" test -d /flagos; then
             local _base_path
             _base_path="$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \
                 "$build_ctr" | grep '^PATH=' | cut -d= -f2-)"
