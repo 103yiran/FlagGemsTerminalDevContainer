@@ -362,7 +362,7 @@ sed -i \
 PLATFORM='${PLATFORM}'
 apt-get update
 apt-get install -y --no-install-recommends \
-    sudo zsh git curl wget unzip ca-certificates ripgrep fd-find gh openssh-client squashfs-tools \
+    sudo zsh git curl wget unzip ca-certificates ripgrep fd-find gh openssh-client squashfs-tools gnupg pass \
     \$([ \"\$PLATFORM\" = 'nvidia' -o \"\$PLATFORM\" = 'thead' ] && echo 'python3-pip clang-format')
 if [ \"\$PLATFORM\" = 'nvidia' -o \"\$PLATFORM\" = 'thead' ]; then
     /usr/bin/pip3 install --no-cache-dir --break-system-packages \
