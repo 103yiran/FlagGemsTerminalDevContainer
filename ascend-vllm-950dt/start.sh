@@ -2,12 +2,12 @@
 # ascend-vllm-950dt/start.sh — launch the FlagGems Ascend dev container on the
 # vllm-ascend community base image, 950DT-variant tag.
 #
-# Base image:  m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc2-a5
+# Base image:  m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0-a5
 #              (upstream vllm-ascend image built against the Atlas 950DT
 #              CANN base image and SOC_VERSION — same CANN/vLLM/torch_npu/
 #              vllm-ascend stack as the plain v0.30.0rc1 tag
-#              ascend-vllm/start.sh uses, just a newer vllm-ascend release
-#              (rc2) built for 950DT instead of 910b; dev image
+#              ascend-vllm/start.sh uses, just the vllm-ascend release
+#              built for 950DT instead of 910b; dev image
 #              flaggems-vllm-ascend-950dt:dev)
 #
 # Default repo mount: ../FlagGems-vllm (sibling checkout), not plain FlagGems —
@@ -53,10 +53,10 @@ PLATFORM="ascend"
 # three pieces — same pattern nvidia, thead, ascend-910c, ascend-vllm, and
 # ascend-vllm-910c use for their own non-standard base images. Only the tag
 # differs from ascend-vllm/start.sh (-a5 suffix selects the 950DT build on
-# the newer rc2 vllm-ascend release).
+# the v0.30.0 vllm-ascend release).
 BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-m.daocloud.io/quay.io/ascend}"
 BASE_IMAGE_NAME="${BASE_IMAGE_NAME:-${BASE_IMAGE_REGISTRY}/vllm-ascend}"
-BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-v0.30.0rc2-a5}"
+BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-v0.30.0-a5}"
 
 # Distinct dev image / default container name so a vllm-ascend-950dt
 # container never collides with ascend/start.sh, ascend-910c/start.sh,
