@@ -35,6 +35,7 @@ FlagGemsTerminalDevContainer/
 ├── ascend-910c/start.sh   # Ascend 910C launcher — same platform logic, 910C base image
 ├── ascend-vllm/start.sh   # Ascend launcher on the upstream vllm-ascend image
 ├── ascend-vllm-910c/start.sh  # vllm-ascend image, Atlas A3 (16-device) variant
+├── ascend-vllm-950dt/start.sh # vllm-ascend image, 950DT (8-device) variant
 ├── hygon-vllm/start.sh      # Hygon DCU launcher on the upstream vllm image
 ├── metax/start.sh         # Metax launcher
 ├── iluvatar/start.sh      # Iluvatar launcher

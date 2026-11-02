@@ -35,6 +35,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./ascend-910c/start.sh  # Ascend 910C
 ./ascend-vllm/start.sh      # Ascend，vllm-ascend base 镜像
 ./ascend-vllm-910c/start.sh # Ascend，vllm-ascend base 镜像，Atlas A3
+./ascend-vllm-950dt/start.sh # Ascend，vllm-ascend base 镜像，950DT
 ./hygon-vllm/start.sh   # 海光 DCU，vllm base 镜像
 ./nvidia-vllm/start.sh  # NVIDIA，上游 vllm base 镜像
 ./metax/start.sh        # Metax
@@ -45,7 +46,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ```
 
 首次运行时，脚本会构建 dev 镜像、创建容器并把仓库挂载到 `/workspace/` 下、在容器内安装 oh-my-zsh/LazyVim，然后进入 zsh。后续再次运行会直接复用已有的镜像和容器。完整的 `start.sh` 参数/环境变量说明和示例见
-[docs/zh-cn/usage.md](docs/zh-cn/usage.md)，四个 Ascend 启动脚本的专属细节（驱动烘焙、root-only NPU 访问限制、CANN 环境注入、cannbot 插件）见
+[docs/zh-cn/usage.md](docs/zh-cn/usage.md)，五个 Ascend 启动脚本的专属细节（驱动烘焙、root-only NPU 访问限制、CANN 环境注入、cannbot 插件）见
 [docs/zh-cn/ascend.md](docs/zh-cn/ascend.md)。
 
 ## 延伸阅读
@@ -53,6 +54,6 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 - [docs/zh-cn/overview.md](docs/zh-cn/overview.md) —— 本仓库是什么，容器是如何被创建出来的。
 - [docs/zh-cn/architecture.md](docs/zh-cn/architecture.md) —— 构建流程与 `platform_*` 钩子约定。
 - [docs/zh-cn/platforms.md](docs/zh-cn/platforms.md) —— 各平台前置条件、base 镜像与硬件访问配置。
-- [docs/zh-cn/ascend.md](docs/zh-cn/ascend.md) —— 四个 Ascend 启动脚本的深入说明。
+- [docs/zh-cn/ascend.md](docs/zh-cn/ascend.md) —— 五个 Ascend 启动脚本的深入说明。
 - [docs/zh-cn/usage.md](docs/zh-cn/usage.md) —— 参数、环境变量、容器内环境、网络/SSH、容器管理。
 - [docs/zh-cn/contribution.md](docs/zh-cn/contribution.md) —— 如何新增一个硬件平台。

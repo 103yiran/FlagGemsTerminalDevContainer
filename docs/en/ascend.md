@@ -1,14 +1,14 @@
 # Ascend
 
-Ascend has four launchers (`ascend/start.sh`, `ascend-910c/start.sh`,
-`ascend-vllm/start.sh`, `ascend-vllm-910c/start.sh`) and carries by far the
-most platform-specific logic in the repository — driver baking, a
-`HwHiAiUser` permission model with a real kernel-level gotcha, CANN
-environment discovery/injection, and the cannbot plugin install. This page
-covers all four together, since they share essentially everything except
-their base image and device count.
+Ascend has five launchers (`ascend/start.sh`, `ascend-910c/start.sh`,
+`ascend-vllm/start.sh`, `ascend-vllm-910c/start.sh`,
+`ascend-vllm-950dt/start.sh`) and carries by far the most platform-specific
+logic in the repository — driver baking, a `HwHiAiUser` permission model
+with a real kernel-level gotcha, CANN environment discovery/injection, and
+the cannbot plugin install. This page covers all five together, since they
+share essentially everything except their base image and device count.
 
-## 1. The four variants, and why they exist
+## 1. The five variants, and why they exist
 
 | Launcher | Base image | Hardware target | Device range |
 |----------|-----------|------------------|---------------|
@@ -16,8 +16,9 @@ their base image and device count.
 | `ascend-910c/start.sh` | `flagos-base-ascend-cann9.0.0-910c` (FlagOS base, 910C-specific) | 910C | `/dev/davinci0`–`7` |
 | `ascend-vllm/start.sh` | `vllm-ascend:v0.30.0rc1` (upstream, not FlagOS) | 910B | `/dev/davinci0`–`7` |
 | `ascend-vllm-910c/start.sh` | `vllm-ascend:v0.30.0rc1-a3` (upstream `Dockerfile.a3`) | Atlas A3 (910_93) | `/dev/davinci0`–`15` (16 devices) |
+| `ascend-vllm-950dt/start.sh` | `vllm-ascend:v0.30.0rc2-a5` (upstream, 950DT build) | 950DT | `/dev/davinci0`–`7` |
 
-All four set `PLATFORM="ascend"` and share identical device-permission,
+All five set `PLATFORM="ascend"` and share identical device-permission,
 shell-env-injection, and cannbot-install logic — only the base image
 reference, the resulting `DEV_IMAGE`/`CONTAINER_NAME`, and (for the `-910c`
 Atlas A3 variant) the device count differ. The `-vllm` variants additionally
@@ -143,7 +144,7 @@ instead of resetting to the system interpreter. A `sudo-python` wrapper at
 
 ## 5. cannbot plugins
 
-All four Ascend launchers install a set of
+All five Ascend launchers install a set of
 [cannbot](https://www.npmjs.com/package/@cannbot-plugin/cannbot) plugins
 into the dev image during build, layered on top of the Claude Code, Codex,
 and CodeBuddy Code CLIs that `common/lib.sh`'s build layer 5 already installs

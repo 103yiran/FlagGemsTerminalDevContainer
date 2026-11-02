@@ -41,6 +41,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./ascend-910c/start.sh  # Ascend 910C
 ./ascend-vllm/start.sh      # Ascend, vllm-ascend base image
 ./ascend-vllm-910c/start.sh # Ascend, vllm-ascend base image, Atlas A3
+./ascend-vllm-950dt/start.sh # Ascend, vllm-ascend base image, 950DT
 ./hygon-vllm/start.sh   # Hygon DCU, vllm base image
 ./nvidia-vllm/start.sh  # NVIDIA, upstream vllm base image
 ./metax/start.sh        # Metax
@@ -55,7 +56,7 @@ the repositories bind-mounted under `/workspace/`, installs oh-my-zsh/LazyVim
 inside it, then drops you into zsh. Subsequent runs reuse the existing
 image/container. See [docs/en/usage.md](docs/en/usage.md) for the full
 `start.sh` flag/env-var reference and examples, and
-[docs/en/ascend.md](docs/en/ascend.md) for details specific to the four
+[docs/en/ascend.md](docs/en/ascend.md) for details specific to the five
 Ascend launchers (driver baking, the root-only NPU access limitation, CANN
 environment injection, cannbot plugins).
 

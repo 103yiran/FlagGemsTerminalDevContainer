@@ -1,12 +1,13 @@
 # Ascend 专题
 
-Ascend 有 4 个启动脚本（`ascend/start.sh`、`ascend-910c/start.sh`、
-`ascend-vllm/start.sh`、`ascend-vllm-910c/start.sh`),承载了全仓库里最
+Ascend 有 5 个启动脚本（`ascend/start.sh`、`ascend-910c/start.sh`、
+`ascend-vllm/start.sh`、`ascend-vllm-910c/start.sh`、
+`ascend-vllm-950dt/start.sh`),承载了全仓库里最
 复杂的平台专属逻辑——driver 烘焙、带有真实内核级坑点的 `HwHiAiUser`
-权限模型、CANN 环境发现/注入,以及 cannbot 插件安装。本页把 4 个变体放在
+权限模型、CANN 环境发现/注入,以及 cannbot 插件安装。本页把 5 个变体放在
 一起讲,因为除了 base 镜像和设备数量之外,它们几乎共享全部逻辑。
 
-## 1. 4 个变体，分别是为了什么
+## 1. 5 个变体，分别是为了什么
 
 | 启动脚本 | Base 镜像 | 目标硬件 | 设备范围 |
 |----------|-----------|---------|---------|
@@ -14,8 +15,9 @@ Ascend 有 4 个启动脚本（`ascend/start.sh`、`ascend-910c/start.sh`、
 | `ascend-910c/start.sh` | `flagos-base-ascend-cann9.0.0-910c`（FlagOS base，910C 专用） | 910C | `/dev/davinci0`–`7` |
 | `ascend-vllm/start.sh` | `vllm-ascend:v0.30.0rc1`（上游镜像，非 FlagOS） | 910B | `/dev/davinci0`–`7` |
 | `ascend-vllm-910c/start.sh` | `vllm-ascend:v0.30.0rc1-a3`（上游 `Dockerfile.a3`） | Atlas A3（910_93） | `/dev/davinci0`–`15`（16 张卡） |
+| `ascend-vllm-950dt/start.sh` | `vllm-ascend:v0.30.0rc2-a5`（上游镜像，950DT 构建） | 950DT | `/dev/davinci0`–`7` |
 
-4 个脚本都设置 `PLATFORM="ascend"`,共享完全相同的设备权限配置、shell
+5 个脚本都设置 `PLATFORM="ascend"`,共享完全相同的设备权限配置、shell
 环境注入,以及 cannbot 安装逻辑——只有 base 镜像引用、由此得到的
 `DEV_IMAGE`/`CONTAINER_NAME`,以及（Atlas A3 的 `-910c` 变体）设备数量
 不同。`-vllm` 系列额外默认挂载 `../FlagGems-vllm` 这个同级目录而不是
@@ -131,7 +133,7 @@ sudo ascend-refresh-env
 
 ## 5. cannbot 插件
 
-4 个 Ascend 启动脚本都会在构建 dev 镜像时安装一组
+5 个 Ascend 启动脚本都会在构建 dev 镜像时安装一组
 [cannbot](https://www.npmjs.com/package/@cannbot-plugin/cannbot) 插件,
 叠加在 `common/lib.sh` 构建第 5 层已经为所有平台安装好的 Claude Code、
 Codex 和 CodeBuddy Code CLI 之上。这一步是 `platform_post_build_exec` 的一部分,自动完成,

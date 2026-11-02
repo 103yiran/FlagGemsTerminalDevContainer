@@ -1,8 +1,8 @@
 # Platforms
 
-A side-by-side reference for all 15 launchers. See [Architecture](architecture.md)
+A side-by-side reference for all 16 launchers. See [Architecture](architecture.md)
 for what each hook actually does, and [Ascend](ascend.md) for a deeper look
-at the four Ascend variants specifically.
+at the five Ascend variants specifically.
 
 ## 1. Base images and identity
 
@@ -17,13 +17,14 @@ at the four Ascend variants specifically.
 | `ascend-910c/start.sh` | `ascend` | `harbor.baai.ac.cn/flagos-base/flagos-base-ascend-cann9.0.0-910c:2.2.0` | `cann9.0.0` | `flaggems-ascend-910c:dev` / `flaggems-ascend-910c-dev-<user>` |
 | `ascend-vllm/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1` | n/a (upstream image) | `flaggems-vllm-ascend:dev` / `flaggems-vllm-ascend-dev-<user>` |
 | `ascend-vllm-910c/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1-a3` | n/a (upstream image, `Dockerfile.a3`) | `flaggems-vllm-ascend-910c:dev` / `flaggems-vllm-ascend-910c-dev-<user>` |
+| `ascend-vllm-950dt/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc2-a5` | n/a (upstream image, 950DT build) | `flaggems-vllm-ascend-950dt:dev` / `flaggems-vllm-ascend-950dt-dev-<user>` |
 | `metax/start.sh` | `metax` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2` | `maca3.8.1.3` | `flaggems-metax:dev` / `flaggems-metax-dev-<user>` |
 | `iluvatar/start.sh` | `iluvatar` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2` | `corex4.5.0` | `flaggems-iluvatar:dev` / `flaggems-iluvatar-dev-<user>` |
 | `mthreads/start.sh` | `mthreads` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.1.2` | `musa5.2.0` | `flaggems-mthreads:dev` / `flaggems-mthreads-dev-<user>` |
 | `kunlunxin/start.sh` | `kunlunxin` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.2.0` | `xre5.37.1` | `flaggems-kunlunxin:dev` / `flaggems-kunlunxin-dev-<user>` |
 | `thead/start.sh` | `thead` | `pkg.flytiger-eco.com/docker_release/pytorch:v2.1.1-2.10.0-ubuntu24.04-cuda13.0-py312` | n/a (plain PyTorch image) | `flaggems-thead:dev` / `flaggems-thead-dev-<user>` |
 
-Note: all four Ascend launchers set `PLATFORM="ascend"` internally (so they
+Note: all five Ascend launchers set `PLATFORM="ascend"` internally (so they
 share the Dockerfile's apt-package and group-creation branch, and
 `common/lib.sh`'s default flagos-runtime naming logic) — they distinguish
 themselves purely via `BASE_IMAGE_NAME`/`BASE_IMAGE_TAG` and distinct
@@ -41,7 +42,7 @@ pattern with `PLATFORM="nvidia"` against the upstream NVIDIA NGC vllm image.
 | `hygon` | `/dev/kfd`, `/dev/mkfd`, `/dev/dri` | `--group-add video`, `--group-add 39`, `--privileged` | — | `/opt/hyhal` | — |
 | `hygon-vllm` | same as `hygon` | same as `hygon` | — | `/opt/hyhal` | — |
 | `cambricon` | `/dev/cambricon_dev0`–`7`, `/dev/cambricon_ctl` | — | — | — | — |
-| `ascend` (and all 3 other Ascend variants) | `/dev/davinci0`–`7` (`-910c` variants: `0`–`15`), `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` | `--privileged`, `--pid=host`, `--security-opt label=disable` | `HwHiAiUser` | `/usr/local/dcmi`, `/usr/local/sbin/npu-smi` | `platform_build_args` (mounts host driver read-only) + `platform_post_build_exec` (bakes driver/dcmi into image, installs cannbot plugins) — see [Ascend](ascend.md) |
+| `ascend` (and all 4 other Ascend variants) | `/dev/davinci0`–`7` (`ascend-vllm-910c` only: `0`–`15`), `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` | `--privileged`, `--pid=host`, `--security-opt label=disable` | `HwHiAiUser` | `/usr/local/dcmi`, `/usr/local/sbin/npu-smi` | `platform_build_args` (mounts host driver read-only) + `platform_post_build_exec` (bakes driver/dcmi into image, installs cannbot plugins) — see [Ascend](ascend.md) |
 | `metax` | `/dev/mxcd`, `/dev/dri` | `--group-add=video` | — | — | — |
 | `iluvatar` | `/dev/itrctl`, `/dev/iluvatar0`–`15` | — | — | `/usr/local/corex` (read-only) | — |
 | `mthreads` | `/dev/mtgpu.0`–`7`, `/dev/dri` | `--group-add render`, `--group-add video` | `render` (GID pinned to match the host's) | `/usr/bin/mthreads-gmi` (read-only) | — |
@@ -105,8 +106,8 @@ at a point the hook contract doesn't cover directly:
   when group membership and device permissions are entirely correct. See
   [Ascend §3](ascend.md#3-why-npu-access-is-usually-root-only) for the full
   explanation and the `docker exec -u root` workaround.
-- **`ascend-vllm` / `ascend-vllm-910c` / `hygon-vllm` / `nvidia-vllm`**:
-  default to mounting a `../FlagGems-vllm` sibling checkout rather than plain
-  FlagGems (use `--repo` to override), since the upstream vllm-ascend / DCU
-  vllm / NVIDIA vllm image's Python environment is tuned for the vLLM
-  integration path.
+- **`ascend-vllm` / `ascend-vllm-910c` / `ascend-vllm-950dt` / `hygon-vllm` /
+  `nvidia-vllm`**: default to mounting a `../FlagGems-vllm` sibling checkout
+  rather than plain FlagGems (use `--repo` to override), since the upstream
+  vllm-ascend / DCU vllm / NVIDIA vllm image's Python environment is tuned
+  for the vLLM integration path.
