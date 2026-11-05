@@ -92,9 +92,9 @@ for who uses which):
 - **Non-default base image naming.** `common/lib.sh` defaults
   `BASE_IMAGE_NAME` to `${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION}`.
   Platforms whose base image doesn't follow that naming (NVIDIA, NVIDIA vllm,
-  T-Head, Ascend 910C, Ascend vllm variants, Hygon vllm) set
-  `BASE_IMAGE_REGISTRY`/`BASE_IMAGE_NAME`/`BASE_IMAGE_TAG` themselves *before*
-  sourcing `common/lib.sh`.
+  T-Head, Ascend 910C, Ascend vllm variants, Hygon vllm, Moore Threads vllm)
+  set `BASE_IMAGE_REGISTRY`/`BASE_IMAGE_NAME`/`BASE_IMAGE_TAG` themselves
+  *before* sourcing `common/lib.sh`.
 - **Post-container-start steps.** A launcher that needs to run something
   once the long-lived container is actually up (not at image-build time)
   wraps `_run_container` the same way NVIDIA (and NVIDIA vllm, which copies

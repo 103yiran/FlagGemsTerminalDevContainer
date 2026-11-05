@@ -1,6 +1,6 @@
 # Platforms
 
-A side-by-side reference for all 16 launchers. See [Architecture](architecture.md)
+A side-by-side reference for all 17 launchers. See [Architecture](architecture.md)
 for what each hook actually does, and [Ascend](ascend.md) for a deeper look
 at the five Ascend variants specifically.
 
@@ -21,6 +21,7 @@ at the five Ascend variants specifically.
 | `metax/start.sh` | `metax` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2` | `maca3.8.1.3` | `flaggems-metax:dev` / `flaggems-metax-dev-<user>` |
 | `iluvatar/start.sh` | `iluvatar` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2` | `corex4.5.0` | `flaggems-iluvatar:dev` / `flaggems-iluvatar-dev-<user>` |
 | `mthreads/start.sh` | `mthreads` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.1.2` | `musa5.2.0` | `flaggems-mthreads:dev` / `flaggems-mthreads-dev-<user>` |
+| `mthreads-vllm/start.sh` | `mthreads` | `registry.mthreads.com/mcconline/inference/vllm/vllm-openai:v0.32.0` | n/a (upstream image) | `flaggems-vllm-mthreads:dev` / `flaggems-vllm-mthreads-dev-<user>` |
 | `kunlunxin/start.sh` | `kunlunxin` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.2.0` | `xre5.37.1` | `flaggems-kunlunxin:dev` / `flaggems-kunlunxin-dev-<user>` |
 | `thead/start.sh` | `thead` | `pkg.flytiger-eco.com/docker_release/pytorch:v2.1.1-2.10.0-ubuntu24.04-cuda13.0-py312` | n/a (plain PyTorch image) | `flaggems-thead:dev` / `flaggems-thead-dev-<user>` |
 
@@ -32,6 +33,8 @@ themselves purely via `BASE_IMAGE_NAME`/`BASE_IMAGE_TAG` and distinct
 `hygon-vllm/start.sh` follows the same pattern with `PLATFORM="hygon"` against
 the upstream Hygon DCU vllm image. `nvidia-vllm/start.sh` follows the same
 pattern with `PLATFORM="nvidia"` against the upstream NVIDIA NGC vllm image.
+`mthreads-vllm/start.sh` follows the same pattern with `PLATFORM="mthreads"`
+against the upstream Moore Threads vllm image.
 
 ## 2. Hardware access: devices, groups, mounts, hooks
 
@@ -46,6 +49,7 @@ pattern with `PLATFORM="nvidia"` against the upstream NVIDIA NGC vllm image.
 | `metax` | `/dev/mxcd`, `/dev/dri` | `--group-add=video` | — | — | — |
 | `iluvatar` | `/dev/itrctl`, `/dev/iluvatar0`–`15` | — | — | `/usr/local/corex` (read-only) | — |
 | `mthreads` | `/dev/mtgpu.0`–`7`, `/dev/dri` | `--group-add render`, `--group-add video` | `render` (GID pinned to match the host's) | `/usr/bin/mthreads-gmi` (read-only) | — |
+| `mthreads-vllm` | same as `mthreads` | same as `mthreads` | `render` (GID pinned to match the host's) | `/usr/bin/mthreads-gmi` (read-only) | — |
 | `kunlunxin` | `/dev/xpu0`–`7`, `/dev/xpuctrl` | — | — | — | — |
 | `thead` | `/dev/alixpu`, `/dev/alixpu_ctl`, `/dev/alixpu_ppu0`–`7` | `--privileged`, `--init`, `--shm-size=8g` | — | — | — |
 
@@ -56,10 +60,11 @@ A few things worth calling out:
   resolves a `HwHiAiUser` GID conflict with the base image's `ubuntu` group,
   and configures `sudo`/shell-rc environment injection for CANN. See
   [Ascend](ascend.md) for the full picture.
-- **`mthreads` is the only non-Ascend platform using `platform_user_groups`.**
-  Its base image has no `render` group by default, so `--group-add render`
-  at `docker run` time would fail unless the group is created first (with a
-  GID matching the host's, so it actually maps to the real device owner).
+- **`mthreads` and `mthreads-vllm` are the only non-Ascend platforms using
+  `platform_user_groups`.** Their base images have no `render` group by
+  default, so `--group-add render` at `docker run` time would fail unless
+  the group is created first (with a GID matching the host's, so it
+  actually maps to the real device owner).
 - **`--privileged` appears on three platforms** (`hygon`, `ascend`/variants,
   `thead`) for different reasons — Hygon and T-Head use it as a blanket
   device-access grant from their respective reference `docker run` commands,
@@ -79,15 +84,17 @@ instead.
 ## 4. Launchers that wrap `lib_main` vs. just calling it
 
 Most launchers end with a plain `lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"`
-call. Seven wrap it (or `_run_container`) instead, because they need to act
+call. Eight wrap it (or `_run_container`) instead, because they need to act
 at a point the hook contract doesn't cover directly:
 
-- **`hygon`, `hygon-vllm`, `iluvatar`, `mthreads`** — each defines a
-  `_<platform>_patch_mounts` function that prepends a platform-specific `-v`
-  mount to `REPO_MOUNT_ARGS`, and a `_<platform>_lib_main` wrapper that calls
-  `_parse_args`, then the patch function, then replays the rest of
-  `lib_main`'s body by hand. `hygon-vllm` copies `hygon`'s wrapper verbatim —
-  same DCU hardware, just a different (upstream vllm) base image.
+- **`hygon`, `hygon-vllm`, `iluvatar`, `mthreads`, `mthreads-vllm`** — each
+  defines a `_<platform>_patch_mounts` function that prepends a
+  platform-specific `-v` mount to `REPO_MOUNT_ARGS`, and a
+  `_<platform>_lib_main` wrapper that calls `_parse_args`, then the patch
+  function, then replays the rest of `lib_main`'s body by hand. `hygon-vllm`
+  copies `hygon`'s wrapper verbatim — same DCU hardware, just a different
+  (upstream vllm) base image. `mthreads-vllm` copies `mthreads`'s wrapper
+  verbatim the same way.
 - **`ascend`** (shared by all four Ascend variants, since they source the
   same `ascend-refresh-env.sh`-adjacent logic independently in each
   `start.sh`) — wraps `_run_container` itself (via `declare -f` to copy its
@@ -107,7 +114,7 @@ at a point the hook contract doesn't cover directly:
   [Ascend §3](ascend.md#3-why-npu-access-is-usually-root-only) for the full
   explanation and the `docker exec -u root` workaround.
 - **`ascend-vllm` / `ascend-vllm-910c` / `ascend-vllm-950dt` / `hygon-vllm` /
-  `nvidia-vllm`**: default to mounting a `../FlagGems-vllm` sibling checkout
-  rather than plain FlagGems (use `--repo` to override), since the upstream
-  vllm-ascend / DCU vllm / NVIDIA vllm image's Python environment is tuned
-  for the vLLM integration path.
+  `nvidia-vllm` / `mthreads-vllm`**: default to mounting a `../FlagGems-vllm`
+  sibling checkout rather than plain FlagGems (use `--repo` to override),
+  since the upstream vllm-ascend / DCU vllm / NVIDIA vllm / Moore Threads
+  vllm image's Python environment is tuned for the vLLM integration path.

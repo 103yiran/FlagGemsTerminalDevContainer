@@ -85,8 +85,9 @@
 - **非默认的 base 镜像命名。** `common/lib.sh` 默认把 `BASE_IMAGE_NAME`
   设为 `${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION}`。
   base 镜像不遵循这个命名规则的平台（NVIDIA、NVIDIA vllm、平头哥、
-  Ascend 910C、Ascend vllm 系列、Hygon vllm）会在 `source common/lib.sh`
-  *之前*自行设置 `BASE_IMAGE_REGISTRY`/`BASE_IMAGE_NAME`/`BASE_IMAGE_TAG`。
+  Ascend 910C、Ascend vllm 系列、Hygon vllm、摩尔线程 vllm）会在
+  `source common/lib.sh` *之前*自行设置
+  `BASE_IMAGE_REGISTRY`/`BASE_IMAGE_NAME`/`BASE_IMAGE_TAG`。
 - **容器启动之后才执行的步骤。** 需要在长期运行的容器真正启动之后
   （而不是镜像构建时）跑点东西的启动脚本,会用 NVIDIA（以及照搬同一套
   封装的 NVIDIA vllm）对 `install-nsight-compute.sh` 的方式,或者 Ascend

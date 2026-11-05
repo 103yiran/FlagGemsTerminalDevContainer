@@ -37,6 +37,7 @@ FlagGemsTerminalDevContainer/
 ├── metax/start.sh         # Metax 启动脚本
 ├── iluvatar/start.sh      # Iluvatar 启动脚本
 ├── mthreads/start.sh      # 摩尔线程启动脚本
+├── mthreads-vllm/start.sh # 基于上游 vllm 镜像的摩尔线程启动脚本
 ├── kunlunxin/start.sh     # 昆仑芯启动脚本
 └── thead/start.sh         # 平头哥启动脚本
 ```

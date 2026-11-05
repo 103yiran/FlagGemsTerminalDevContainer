@@ -1,6 +1,6 @@
 # 平台参考
 
-这里横向列出全部 16 个启动脚本的差异。各钩子具体做了什么见
+这里横向列出全部 17 个启动脚本的差异。各钩子具体做了什么见
 [架构](architecture.md),5 个 Ascend 变体的深入讲解见
 [Ascend 专题](ascend.md)。
 
@@ -21,6 +21,7 @@
 | `metax/start.sh` | `metax` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2` | `maca3.8.1.3` | `flaggems-metax:dev` / `flaggems-metax-dev-<用户名>` |
 | `iluvatar/start.sh` | `iluvatar` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2` | `corex4.5.0` | `flaggems-iluvatar:dev` / `flaggems-iluvatar-dev-<用户名>` |
 | `mthreads/start.sh` | `mthreads` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.1.2` | `musa5.2.0` | `flaggems-mthreads:dev` / `flaggems-mthreads-dev-<用户名>` |
+| `mthreads-vllm/start.sh` | `mthreads` | `registry.mthreads.com/mcconline/inference/vllm/vllm-openai:v0.32.0` | 无（上游镜像） | `flaggems-vllm-mthreads:dev` / `flaggems-vllm-mthreads-dev-<用户名>` |
 | `kunlunxin/start.sh` | `kunlunxin` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.2.0` | `xre5.37.1` | `flaggems-kunlunxin:dev` / `flaggems-kunlunxin-dev-<用户名>` |
 | `thead/start.sh` | `thead` | `pkg.flytiger-eco.com/docker_release/pytorch:v2.1.1-2.10.0-ubuntu24.04-cuda13.0-py312` | 无（普通 PyTorch 镜像） | `flaggems-thead:dev` / `flaggems-thead-dev-<用户名>` |
 
@@ -31,7 +32,9 @@
 `DEV_IMAGE`/`CONTAINER_NAME`,而不是修改 `PLATFORM` 本身。
 `hygon-vllm/start.sh` 采用同样的套路,内部设置 `PLATFORM="hygon"`,指向
 上游海光 DCU vllm 镜像。`nvidia-vllm/start.sh` 同样采用这个套路,内部设置
-`PLATFORM="nvidia"`,指向上游 NVIDIA NGC vllm 镜像。
+`PLATFORM="nvidia"`,指向上游 NVIDIA NGC vllm 镜像。`mthreads-vllm/start.sh`
+同样采用这个套路,内部设置 `PLATFORM="mthreads"`,指向上游摩尔线程 vllm
+镜像。
 
 ## 2. 硬件访问：设备、用户组、挂载、钩子
 
@@ -46,6 +49,7 @@
 | `metax` | `/dev/mxcd`、`/dev/dri` | `--group-add=video` | — | — | — |
 | `iluvatar` | `/dev/itrctl`、`/dev/iluvatar0`–`15` | — | — | `/usr/local/corex`（只读） | — |
 | `mthreads` | `/dev/mtgpu.0`–`7`、`/dev/dri` | `--group-add render`、`--group-add video` | `render`（GID 固定为与宿主机一致） | `/usr/bin/mthreads-gmi`（只读） | — |
+| `mthreads-vllm` | 与 `mthreads` 相同 | 与 `mthreads` 相同 | `render`（GID 固定为与宿主机一致） | `/usr/bin/mthreads-gmi`（只读） | — |
 | `kunlunxin` | `/dev/xpu0`–`7`、`/dev/xpuctrl` | — | — | — | — |
 | `thead` | `/dev/alixpu`、`/dev/alixpu_ctl`、`/dev/alixpu_ppu0`–`7` | `--privileged`、`--init`、`--shm-size=8g` | — | — | — |
 
@@ -55,10 +59,10 @@
   还会修复设备文件权限、处理 `HwHiAiUser` 与 base 镜像自带 `ubuntu` 组之间
   的 GID 冲突,并为 CANN 配置 sudo/shell rc 的环境变量注入。完整内容见
   [Ascend 专题](ascend.md)。
-- **`mthreads` 是唯一一个非 Ascend 平台用到 `platform_user_groups`
-  的**。它的 base 镜像默认没有 `render` 组,如果不先创建这个组（GID 对齐
-  宿主机,这样才能真正映射到实际的设备 owner）,`--group-add render` 在
-  `docker run` 时会直接失败。
+- **`mthreads` 和 `mthreads-vllm` 是仅有的两个非 Ascend 平台用到
+  `platform_user_groups` 的**。它们的 base 镜像默认都没有 `render` 组,
+  如果不先创建这个组（GID 对齐宿主机,这样才能真正映射到实际的设备
+  owner）,`--group-add render` 在 `docker run` 时会直接失败。
 - **三个平台用到了 `--privileged`**（`hygon`、`ascend`/其变体、
   `thead`），原因各不相同——Hygon 和平头哥是沿用各自参考 `docker run`
   命令里的笼统设备授权方式,而 Ascend 依赖它特指让 root 绕过驱动的
@@ -77,15 +81,16 @@
 ## 4. 直接调用 `lib_main` vs. 封装 `lib_main`
 
 大多数启动脚本最后都是单纯调用一次
-`lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"`。有 7 个会封装它（或者
+`lib_main "$SCRIPT_DIR" "$REPO_ROOT" "$@"`。有 8 个会封装它（或者
 `_run_container`）,因为它们需要在钩子约定没有直接覆盖的某个时间点做事：
 
-- **`hygon`、`hygon-vllm`、`iluvatar`、`mthreads`** —— 各自定义一个
-  `_<platform>_patch_mounts` 函数,把平台专属的 `-v` 挂载前置进
-  `REPO_MOUNT_ARGS`,再定义一个 `_<platform>_lib_main` 封装函数,手动
-  按顺序调用 `_parse_args`、patch 函数,然后重放 `lib_main` 剩余的逻辑。
-  `hygon-vllm` 直接照搬 `hygon` 的封装——同样的 DCU 硬件,只是换了一个
-  （上游 vllm）base 镜像。
+- **`hygon`、`hygon-vllm`、`iluvatar`、`mthreads`、`mthreads-vllm`** ——
+  各自定义一个 `_<platform>_patch_mounts` 函数,把平台专属的 `-v` 挂载
+  前置进 `REPO_MOUNT_ARGS`,再定义一个 `_<platform>_lib_main` 封装函数,
+  手动按顺序调用 `_parse_args`、patch 函数,然后重放 `lib_main` 剩余的
+  逻辑。`hygon-vllm` 直接照搬 `hygon` 的封装——同样的 DCU 硬件,只是换了
+  一个（上游 vllm）base 镜像。`mthreads-vllm` 同样直接照搬 `mthreads` 的
+  封装。
 - **`ascend`**（5 个 Ascend 变体各自在自己的 `start.sh` 里独立实现了这
   一套逻辑）—— 封装 `_run_container` 本身（通过 `declare -f` 拷贝函数体,
   避免按名字别名导致的无限递归）,在容器创建之后再做挂载 patch、设备
@@ -102,6 +107,7 @@
   `docker exec -u root` 的解决办法见
   [Ascend 专题 §3](ascend.md#3-为什么-npu-访问通常只能用-root)。
 - **`ascend-vllm` / `ascend-vllm-910c` / `ascend-vllm-950dt` / `hygon-vllm` /
-  `nvidia-vllm`**：默认挂载的是 `../FlagGems-vllm` 这个同级目录,而不是
-  普通的 FlagGems（可以用 `--repo` 覆盖）,因为上游 vllm-ascend / DCU
-  vllm / NVIDIA vllm 镜像的 Python 环境是为 vLLM 集成路径调优过的。
+  `nvidia-vllm` / `mthreads-vllm`**：默认挂载的是 `../FlagGems-vllm` 这个
+  同级目录,而不是普通的 FlagGems（可以用 `--repo` 覆盖）,因为上游
+  vllm-ascend / DCU vllm / NVIDIA vllm / 摩尔线程 vllm 镜像的 Python 环境
+  是为 vLLM 集成路径调优过的。

@@ -41,6 +41,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./metax/start.sh        # Metax
 ./iluvatar/start.sh     # Iluvatar
 ./mthreads/start.sh     # 摩尔线程（Moore Threads）
+./mthreads-vllm/start.sh # 摩尔线程，上游 vllm base 镜像
 ./kunlunxin/start.sh    # 昆仑芯（Kunlunxin）
 ./thead/start.sh        # 平头哥（T-Head）
 ```

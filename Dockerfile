@@ -30,9 +30,14 @@
 # the same way, pointing at the upstream NVIDIA NGC vllm image instead of
 # flagos-app/vllm0.24.0-generic-13.3 — see nvidia-vllm/start.sh.
 #
+# mthreads-vllm reuses PLATFORM=mthreads (same device files, groups, and apt
+# packages) the same way, pointing at the upstream Moore Threads vllm image
+# instead of flagos-runtime-mthreads-musa5.2.0 — see mthreads-vllm/start.sh.
+#
 # Usage: built and launched via nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
 #        ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh,
-#        kunlunxin/start.sh, hygon-vllm/start.sh, nvidia-vllm/start.sh, or thead/start.sh
+#        kunlunxin/start.sh, hygon-vllm/start.sh, nvidia-vllm/start.sh,
+#        mthreads-vllm/start.sh, or thead/start.sh
 # ============================================================
 
 ARG PLATFORM=nvidia

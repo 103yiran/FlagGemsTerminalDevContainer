@@ -40,6 +40,7 @@ FlagGemsTerminalDevContainer/
 ├── metax/start.sh         # Metax launcher
 ├── iluvatar/start.sh      # Iluvatar launcher
 ├── mthreads/start.sh      # Moore Threads launcher
+├── mthreads-vllm/start.sh # Moore Threads launcher on the upstream vllm image
 ├── kunlunxin/start.sh     # Kunlunxin launcher
 └── thead/start.sh         # T-Head launcher
 ```
