@@ -38,8 +38,10 @@
    `LatestRelease` 压缩包,失败时重试最多 3 次,并用有限的 `--max-time`
    限制每次尝试（在不稳定的代理环境下,TCP 连接可能已经建立但没有任何
    数据传输,单纯的 `--connect-timeout` 捕捉不到这种情况）。
-5. **Node.js + Claude Code CLI + Codex CLI + CodeBuddy Code CLI。** 从
-   `mirrors.aliyun.com/nodejs-release` 下载 Node 26.13.0 压缩包,然后通过
+5. **Node.js + Claude Code CLI + Codex CLI + CodeBuddy Code CLI。**
+   构建时从 `nodejs.org/dist/index.json` 解析当前的 Active LTS 版本号
+   （解析失败时回退到一个固定版本),再从
+   `mirrors.aliyun.com/nodejs-release` 下载对应的压缩包,然后通过
    `registry.npmmirror.com` 执行
    `npm install -g @anthropic-ai/claude-code @openai/codex @tencent-ai/codebuddy-code`,同样采用
    重试+超时的保护（npm 在卡住的网络请求上并不会可靠地响应 `SIGTERM`,

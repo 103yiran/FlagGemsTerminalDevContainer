@@ -455,12 +455,34 @@ fi
 # node release naming: arm64 stays arm64, x86_64 becomes x64.
 # Same stalled-proxy risk as the nvim download above: bound each attempt
 # with --max-time/timeout and retry rather than hang indefinitely.
+#
+# Resolve the current Active LTS version from the official Node.js release
+# index at build time (the Aliyun mirror has no \"latest\" alias directory to
+# curl directly), then download the matching tarball from the Aliyun mirror
+# as before. Falls back to a pinned known-good version if the index lookup
+# fails, so a flaky nodejs.org doesn't break the whole build.
+_node_fallback_version=v26.13.0
+# index.json has one release object per line, newest first. Keep only lines
+# where \"lts\" is a non-false string (i.e. an Active LTS release) and take
+# the version from the first (newest) match.
+_node_version=\$(curl -fsSL --connect-timeout 10 --max-time 20 \
+        https://nodejs.org/dist/index.json 2>/dev/null \
+    | grep '\"lts\":\"' \
+    | head -1 \
+    | grep -o '\"version\":\"[^\"]*\"' \
+    | cut -d'\"' -f4)
+if [ -z \"\$_node_version\" ]; then
+    echo \"WARNING: could not resolve latest Node.js LTS version, falling back to \${_node_fallback_version}\"
+    _node_version=\$_node_fallback_version
+else
+    echo \"Resolved latest Node.js LTS version: \${_node_version}\"
+fi
 _node_arch=\$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x64/')
 _node_fetched=false
 for _node_try in 1 2 3; do
     rm -f /tmp/node.tar.xz
     if timeout 90 curl -fsSL --connect-timeout 15 --max-time 90 \
-        \"https://mirrors.aliyun.com/nodejs-release/v26.13.0/node-v26.13.0-linux-\${_node_arch}.tar.xz\" \
+        \"https://mirrors.aliyun.com/nodejs-release/\${_node_version}/node-\${_node_version}-linux-\${_node_arch}.tar.xz\" \
         -o /tmp/node.tar.xz \
         && [ -s /tmp/node.tar.xz ]; then
         _node_fetched=true
