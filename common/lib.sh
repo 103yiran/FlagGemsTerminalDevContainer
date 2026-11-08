@@ -460,7 +460,7 @@ _node_fetched=false
 for _node_try in 1 2 3; do
     rm -f /tmp/node.tar.xz
     if timeout 90 curl -fsSL --connect-timeout 15 --max-time 90 \
-        \"https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-\${_node_arch}.tar.xz\" \
+        \"https://mirrors.aliyun.com/nodejs-release/v26.13.0/node-v26.13.0-linux-\${_node_arch}.tar.xz\" \
         -o /tmp/node.tar.xz \
         && [ -s /tmp/node.tar.xz ]; then
         _node_fetched=true

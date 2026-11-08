@@ -156,7 +156,7 @@ RUN apt-get update \
 RUN for i in 1 2 3; do \
         rm -f /tmp/node.tar.xz; \
         timeout 90 curl -fsSL --connect-timeout 15 --max-time 90 \
-            "https://mirrors.aliyun.com/nodejs-release/v22.23.1/node-v22.23.1-linux-arm64.tar.xz" \
+            "https://mirrors.aliyun.com/nodejs-release/v26.13.0/node-v26.13.0-linux-arm64.tar.xz" \
             -o /tmp/node.tar.xz && [ -s /tmp/node.tar.xz ] && break; \
         echo "node download attempt $i/3 failed or stalled, retrying..."; sleep 5; \
     done \

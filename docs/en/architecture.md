@@ -44,7 +44,7 @@ Each layer runs as one `docker exec` into the throwaway build container
    connection open with zero bytes moving, which plain `--connect-timeout`
    does not catch).
 5. **Node.js + Claude Code CLI + Codex CLI + CodeBuddy Code CLI.** Downloads
-   the Node 22.23.1 tarball from `mirrors.aliyun.com/nodejs-release`, then
+   the Node 26.13.0 tarball from `mirrors.aliyun.com/nodejs-release`, then
    `npm install -g @anthropic-ai/claude-code @openai/codex @tencent-ai/codebuddy-code` via
    `registry.npmmirror.com`, with the same retry/timeout treatment (npm does
    not reliably react to `SIGTERM` while blocked on a stalled fetch, so the
