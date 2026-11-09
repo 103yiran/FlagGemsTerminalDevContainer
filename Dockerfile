@@ -14,7 +14,7 @@
 #   PLATFORM=kunlunxin             — TOOLKIT default: xre5.37.1
 #   PLATFORM=enflame               — TOOLKIT default: tops1.10.6
 #   TOOLKIT                        — override toolkit version (replaces per-platform default)
-#   BASE_IMAGE_TAG=2.2.0           — FlagOS base image version
+#   BASE_IMAGE_TAG=2.3.0           — FlagOS base image version
 #
 # Resulting base image: flagos-base-<PLATFORM>-<TOOLKIT>:<BASE_IMAGE_TAG>
 #
@@ -43,7 +43,7 @@
 
 ARG PLATFORM=nvidia
 ARG TOOLKIT=cuda13.3
-ARG BASE_IMAGE_TAG=2.2.0
+ARG BASE_IMAGE_TAG=2.3.0
 ARG BASE_IMAGE_REGISTRY=harbor.baai.ac.cn/flagos-base
 
 FROM ${BASE_IMAGE_REGISTRY}/flagos-base-${PLATFORM}-${TOOLKIT}:${BASE_IMAGE_TAG} AS base

@@ -24,7 +24,7 @@ at the five Ascend variants specifically.
 | `mthreads-vllm/start.sh` | `mthreads` | `registry.mthreads.com/mcconline/inference/vllm/vllm-openai:v0.32.0` | n/a (upstream image) | `flaggems-vllm-mthreads:dev` / `flaggems-vllm-mthreads-dev-<user>` |
 | `kunlunxin/start.sh` | `kunlunxin` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.2.0` | `xre5.37.1` | `flaggems-kunlunxin:dev` / `flaggems-kunlunxin-dev-<user>` |
 | `thead/start.sh` | `thead` | `pkg.flytiger-eco.com/docker_release/pytorch:v2.1.1-2.10.0-ubuntu24.04-cuda13.0-py312` | n/a (plain PyTorch image) | `flaggems-thead:dev` / `flaggems-thead-dev-<user>` |
-| `enflame/start.sh` | `enflame` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.2.0` | `tops1.10.6` | `flaggems-enflame:dev` / `flaggems-enflame-dev-<user>` |
+| `enflame/start.sh` | `enflame` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.3.0` | `tops1.10.6` | `flaggems-enflame:dev` / `flaggems-enflame-dev-<user>` |
 
 Note: all five Ascend launchers set `PLATFORM="ascend"` internally (so they
 share the Dockerfile's apt-package and group-creation branch, and

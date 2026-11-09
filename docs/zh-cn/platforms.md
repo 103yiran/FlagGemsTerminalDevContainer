@@ -24,7 +24,7 @@
 | `mthreads-vllm/start.sh` | `mthreads` | `registry.mthreads.com/mcconline/inference/vllm/vllm-openai:v0.32.0` | 无（上游镜像） | `flaggems-vllm-mthreads:dev` / `flaggems-vllm-mthreads-dev-<用户名>` |
 | `kunlunxin/start.sh` | `kunlunxin` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-kunlunxin-xre5.37.1:2.2.0` | `xre5.37.1` | `flaggems-kunlunxin:dev` / `flaggems-kunlunxin-dev-<用户名>` |
 | `thead/start.sh` | `thead` | `pkg.flytiger-eco.com/docker_release/pytorch:v2.1.1-2.10.0-ubuntu24.04-cuda13.0-py312` | 无（普通 PyTorch 镜像） | `flaggems-thead:dev` / `flaggems-thead-dev-<用户名>` |
-| `enflame/start.sh` | `enflame` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.2.0` | `tops1.10.6` | `flaggems-enflame:dev` / `flaggems-enflame-dev-<用户名>` |
+| `enflame/start.sh` | `enflame` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-enflame-tops1.10.6:2.3.0` | `tops1.10.6` | `flaggems-enflame:dev` / `flaggems-enflame-dev-<用户名>` |
 
 注意：5 个 Ascend 启动脚本内部都设置的是 `PLATFORM="ascend"`（这样它们
 都能复用 Dockerfile 里 apt 包和用户组创建的分支逻辑,以及

@@ -9,7 +9,7 @@
 # Callers may override defaults:
 #   DEV_IMAGE         (default: flaggems-${PLATFORM}:dev)
 #   CONTAINER_NAME    (default: flaggems-${PLATFORM}-dev-$(id -un))
-#   BASE_IMAGE_TAG    (default: 2.2.0, except nvidia 2.2.0-0.3.0 and
+#   BASE_IMAGE_TAG    (default: 2.3.0, except nvidia 2.2.0-0.3.0 and
 #                      kunlunxin/thead which set their own)
 #   BASE_IMAGE_NAME   (default: ${BASE_IMAGE_REGISTRY}/flagos-runtime-${PLATFORM}-${TOOLKIT_VERSION};
 #                      nvidia uses flagos-app/vllm0.24.0-generic-13.3;
@@ -51,7 +51,7 @@ if [[ "${PLATFORM}" == "nvidia" ]]; then
 elif [[ "${PLATFORM}" == "thead" ]]; then
     : # BASE_IMAGE_TAG/REGISTRY/NAME already set by thead/start.sh
 else
-    BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.2.0}"
+    BASE_IMAGE_TAG="${BASE_IMAGE_TAG:-2.3.0}"
     BASE_IMAGE_REGISTRY="${BASE_IMAGE_REGISTRY:-harbor.baai.ac.cn/flagos-runtime}"
 fi
 
@@ -148,7 +148,7 @@ base 镜像: $(base_image_ref)
     start.sh --rebuild                      # 重新构建 dev 镜像
     start.sh --ssh-agent                    # 使用 SSH agent 转发
     start.sh -c "python train.py"           # exec 执行特定命令
-    start.sh --base-tag 2.2.0               # 使用 2.2.0 版本的基础镜像
+    start.sh --base-tag 2.3.0               # 使用 2.3.0 版本的基础镜像
 EOF
     exit 0
 }

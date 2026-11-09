@@ -15,7 +15,7 @@
 #   ./enflame/start.sh -c "python a.py"        # exec command (default: zsh)
 #   ./enflame/start.sh --repo ../FlagTree      # mount FlagTree instead of FlagGems
 #   ./enflame/start.sh --repo ../A --repo ../B # mount multiple repos
-#   ./enflame/start.sh --base-tag 2.2.0        # use FlagOS base image version 2.2.0
+#   ./enflame/start.sh --base-tag 2.3.0        # use FlagOS base image version 2.3.0
 #
 # See common/lib.sh for full option documentation.
 
