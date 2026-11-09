@@ -138,7 +138,7 @@ RUN apt-get update \
     && nvim --version | head -1
 
 # ------------------------------------------------------------------
-# Claude Code CLI + Codex CLI + CodeBuddy Code CLI — Node.js from Aliyun mirror + npm via npmmirror
+# Claude Code CLI + Codex CLI + CodeBuddy Code CLI + DeepSeek Harness (dsh) + dsh-tui — Node.js from Aliyun mirror + npm via npmmirror
 #
 # --max-time/timeout bound each node-download attempt and retry a few times:
 # on a flaky proxy the TCP connection can stay open with zero bytes moving
@@ -182,7 +182,7 @@ RUN _node_fallback_version=v26.13.0; \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
     && for i in 1 2 3; do \
-        timeout --kill-after=10 180 npm install -g @anthropic-ai/claude-code @openai/codex @tencent-ai/codebuddy-code \
+        timeout --kill-after=10 600 npm install -g @anthropic-ai/claude-code @openai/codex @tencent-ai/codebuddy-code @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui \
             --registry https://registry.npmmirror.com \
             --fetch-timeout=60000 --fetch-retries=2 \
             --fetch-retry-mintimeout=5000 --fetch-retry-maxtimeout=15000 && break; \

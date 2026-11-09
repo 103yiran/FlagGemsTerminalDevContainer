@@ -142,17 +142,22 @@ Codex 和 CodeBuddy Code CLI 之上。这一步是 `platform_post_build_exec` �
 ```bash
 npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool claude
 npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool codex
+npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool dsh
 ```
 
 插件列表：
 
 - `triton-op-generator`
-- `hccl-op-generator`
-- `model-infer-optimize`
+- `catlass-op-generator`
+- `ops-perf-optimize`
+- `tilelang-op-orchestrator`
+- `pypto-op-orchestrator`
 - `ops-registry-invoke`
+- `ops-direct-invoke-flash`
 - `ops-direct-invoke`
 
-这些插件为 `claude` 和 `codex` 提供了 Ascend 专属的上下文,用于生成
-Triton/HCCL 算子,以及在模型推理场景中注册/调用算子。单个 plugin 安装
+这些插件为 `claude`、`codex` 和 `dsh` 提供了 Ascend 专属的上下文,用于
+生成 Triton/CATLASS/TileLang/PyPTO 算子,以及在模型推理和性能优化场景中
+注册/调用算子。单个 plugin 安装
 失败（比如 npm registry 偶发抓取失败）只会打印警告——不会导致整个镜像
 构建失败。如果某个插件没装上,重新执行 `--rebuild-dev` 即可重试。

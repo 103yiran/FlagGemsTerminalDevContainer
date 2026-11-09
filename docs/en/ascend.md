@@ -154,18 +154,23 @@ no extra flags needed — by running, for each plugin and each tool:
 ```bash
 npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool claude
 npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool codex
+npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool dsh
 ```
 
 for:
 
 - `triton-op-generator`
-- `hccl-op-generator`
-- `model-infer-optimize`
+- `catlass-op-generator`
+- `ops-perf-optimize`
+- `tilelang-op-orchestrator`
+- `pypto-op-orchestrator`
 - `ops-registry-invoke`
+- `ops-direct-invoke-flash`
 - `ops-direct-invoke`
 
-These give both `claude` and `codex` Ascend-specific context for generating
-Triton/HCCL ops and for invoking/registering ops during model-inference
-work. A single plugin failing to install (e.g. a flaky npm registry fetch)
+These give `claude`, `codex`, and `dsh` Ascend-specific context for
+generating Triton/CATLASS/TileLang/PyPTO ops and for invoking/registering
+ops during model-inference and performance-optimization work. A single
+plugin failing to install (e.g. a flaky npm registry fetch)
 only logs a warning — it does not fail the whole image build. If a plugin
 didn't make it in, rerun `--rebuild-dev` to retry.

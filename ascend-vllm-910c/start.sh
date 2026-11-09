@@ -134,22 +134,26 @@ platform_build_args() {
 #   the host driver always wins here: it matches the NPU firmware actually
 #   running on this machine, which the image's baked-in driver may not.
 #
-# Install the Ascend-focused cannbot plugins for both Claude Code and Codex.
-# common/lib.sh's Layer 5 already installed @anthropic-ai/claude-code and
-# @openai/codex globally via npm before platform_post_build_exec runs, so
-# `npx` and both CLIs are on root's PATH here. Each plugin install is
-# best-effort: a flaky npm registry fetch for one plugin shouldn't fail the
-# whole image build, so failures are logged and the loop continues.
+# Install the Ascend-focused cannbot plugins for Claude Code, Codex, and
+# DeepSeek Harness (dsh). common/lib.sh's Layer 5 already installed
+# @anthropic-ai/claude-code, @openai/codex, and @deepseek-ai/dsh globally via
+# npm before platform_post_build_exec runs, so `npx` and all three CLIs are
+# on root's PATH here. Each plugin install is best-effort: a flaky npm
+# registry fetch for one plugin shouldn't fail the whole image build, so
+# failures are logged and the loop continues.
 _ascend_install_cannbot_plugins() {
     local _ctr="$1"
     local _plugins=(
         triton-op-generator
-        hccl-op-generator
-        model-infer-optimize
+        catlass-op-generator
+        ops-perf-optimize
+        tilelang-op-orchestrator
+        pypto-op-orchestrator
         ops-registry-invoke
+        ops-direct-invoke-flash
         ops-direct-invoke
     )
-    local _tools=(claude codex)
+    local _tools=(claude codex dsh)
 
     print_step "安装 cannbot 插件 (Ascend 算子/模型推理相关)..."
     local _plugin _tool
