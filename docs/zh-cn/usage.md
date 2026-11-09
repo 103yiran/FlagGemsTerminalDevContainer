@@ -95,7 +95,7 @@ BASE_IMAGE_TAG=0.22.0-ubuntu22.04-dtk2604-py3.10 ./hygon-vllm/start.sh
 | 编辑器 | Neovim ≥ 0.11（LazyVim,首次启动时自动同步插件） |
 | Python | `/flagos` 虚拟环境,已安装 FlagGems 及依赖（由 base 镜像提供） |
 | 代码质量 | `pre-commit`、`flake8`、`black`、`isort`、`clang-format`（仅 NVIDIA 和平头哥） |
-| AI 工具 | Claude Code CLI（`claude`）、Codex CLI（`codex`）、CodeBuddy Code CLI（`codebuddy`）；Ascend 额外安装了[cannbot 插件](ascend.md#5-cannbot-插件) |
+| AI 工具 | Claude Code CLI（`claude`）、Codex CLI（`codex`）和 DeepSeek Harness（`dsh`）；Ascend 额外安装了[cannbot 插件](ascend.md#5-cannbot-插件) |
 | 其他 | `ripgrep`、`fd`、`gh`（GitHub CLI）、`sudo`（无密码） |
 | 性能分析 | NVIDIA Nsight Compute（`ncu`），仅 NVIDIA |
 

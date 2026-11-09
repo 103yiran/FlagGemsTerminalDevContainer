@@ -8,7 +8,7 @@ FlagGemsTerminalDevContainer 是一组启动脚本,为
 变体）、Cambricon、Ascend（4 个变体）、Metax、Iluvatar、摩尔线程、昆仑芯、
 平头哥。每个平台的
 容器形态是一致的——zsh + oh-my-zsh、
-Neovim（LazyVim）、Claude Code CLI、Codex CLI、CodeBuddy Code CLI,以及一个预装好 FlagGems 的
+Neovim（LazyVim）、Claude Code CLI、Codex CLI,以及一个预装好 FlagGems 的
 Python 环境——差异只体现在各自需要接入哪些设备文件、内核驱动和工具链。
 
 本仓库在运行时并不直接调用 `docker build` 构建自己的镜像图。`Dockerfile`

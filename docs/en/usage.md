@@ -99,7 +99,7 @@ rebuild, and no re-run of `setup.sh`.
 | Editor | Neovim ≥ 0.11 (LazyVim; plugins synced automatically on first launch) |
 | Python | `/flagos` virtualenv with FlagGems and its dependencies pre-installed (from the base image) |
 | Code quality | `pre-commit`, `flake8`, `black`, `isort`, `clang-format` (NVIDIA and T-Head only) |
-| AI tooling | Claude Code CLI (`claude`), Codex CLI (`codex`), CodeBuddy Code CLI (`codebuddy`); Ascend additionally gets the [cannbot plugins](ascend.md#5-cannbot-plugins) |
+| AI tooling | Claude Code CLI (`claude`), Codex CLI (`codex`), and DeepSeek Harness (`dsh`); Ascend additionally gets the [cannbot plugins](ascend.md#5-cannbot-plugins) |
 | Utilities | `ripgrep`, `fd`, `gh` (GitHub CLI), passwordless `sudo` |
 | Profiling | NVIDIA Nsight Compute (`ncu`), NVIDIA only |
 

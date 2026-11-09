@@ -43,12 +43,12 @@ Each layer runs as one `docker exec` into the throwaway build container
    to 3 times with bounded `--max-time` (a stalled proxy can leave a TCP
    connection open with zero bytes moving, which plain `--connect-timeout`
    does not catch).
-5. **Node.js + Claude Code CLI + Codex CLI + CodeBuddy Code CLI + DeepSeek
+5. **Node.js + Claude Code CLI + Codex CLI + DeepSeek
    Harness (`dsh`) + `dsh-tui`.** Resolves the current Active LTS version
    from `nodejs.org/dist/index.json` at build time (falling back to a
    pinned version if that lookup fails), then downloads the matching
    tarball from `mirrors.aliyun.com/nodejs-release` and runs
-   `npm install -g @anthropic-ai/claude-code @openai/codex @tencent-ai/codebuddy-code @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui` via
+   `npm install -g @anthropic-ai/claude-code @openai/codex @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui` via
    `registry.npmmirror.com`, with the same retry/timeout treatment (npm does
    not reliably react to `SIGTERM` while blocked on a stalled fetch, so the
    outer `timeout --kill-after=10` follows up with `SIGKILL`).

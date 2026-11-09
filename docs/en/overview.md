@@ -8,7 +8,7 @@ contributors, one per supported hardware platform: NVIDIA (plain and vllm
 variants), Hygon (plain and vllm variants), Cambricon, Ascend (four
 variants), Metax, Iluvatar, Moore Threads, Kunlunxin, and T-Head. Every
 platform shares the same container shape — zsh + oh-my-zsh,
-Neovim (LazyVim), Claude Code CLI, Codex CLI, CodeBuddy Code CLI, and a FlagGems-ready Python
+Neovim (LazyVim), Claude Code CLI, Codex CLI, and a FlagGems-ready Python
 environment — and differs only in which device files, kernel driver, and
 toolkit get wired in.
 

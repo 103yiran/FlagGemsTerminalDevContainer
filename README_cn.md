@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境，支持 NVIDIA、Hygon、Cambricon、Ascend、Metax、Iluvatar、摩尔线程（Moore Threads）、昆仑芯（Kunlunxin）、平头哥（T-Head）九种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code、Codex、CodeBuddy Code 及完整的代码质量工具链。
+为 [FlagGems](https://github.com/FlagOpen/FlagGems) 开发者提供的终端容器环境，支持 NVIDIA、Hygon、Cambricon、Ascend、Metax、Iluvatar、摩尔线程（Moore Threads）、昆仑芯（Kunlunxin）、平头哥（T-Head）九种硬件平台。容器内预装 zsh、Neovim（LazyVim）、Claude Code、Codex 及完整的代码质量工具链。
 
 本 README 只覆盖快速上手。仓库结构、各平台前置条件、`start.sh` 参数/环境变量、容器内环境、网络与 SSH 配置、Ascend 已知限制，以及如何新增平台，详见
 **[docs/zh-cn](docs/zh-cn/_index.md)**。

@@ -146,8 +146,8 @@ instead of resetting to the system interpreter. A `sudo-python` wrapper at
 
 All five Ascend launchers install a set of
 [cannbot](https://www.npmjs.com/package/@cannbot-plugin/cannbot) plugins
-into the dev image during build, layered on top of the Claude Code, Codex,
-and CodeBuddy Code CLIs that `common/lib.sh`'s build layer 5 already installs
+into the dev image during build, layered on top of the Claude Code and Codex
+CLIs that `common/lib.sh`'s build layer 5 already installs
 for every platform. This happens automatically as part of `platform_post_build_exec` —
 no extra flags needed — by running, for each plugin and each tool:
 
