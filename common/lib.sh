@@ -510,7 +510,7 @@ rm /tmp/node.tar.xz
 #      still terminates for the next retry instead of hanging indefinitely.
 _npm_installed=false
 for _npm_try in 1 2 3; do
-    if timeout --kill-after=10 600 npm install -g @anthropic-ai/claude-code @openai/codex @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui \
+    if timeout --kill-after=10 600 npm install -g @anthropic-ai/claude-code @openai/codex \
         --registry https://registry.npmmirror.com \
         --fetch-timeout=60000 --fetch-retries=2 \
         --fetch-retry-mintimeout=5000 --fetch-retry-maxtimeout=15000; then
@@ -524,6 +524,14 @@ if ! \$_npm_installed; then
     echo 'ERROR: npm install failed after 3 attempts' >&2
     exit 1
 fi
+# dsh has no stable release yet — install best-effort, don't fail the build
+npm install -g pnpm @deepseek-ai/dsh@latest \
+    || echo 'WARNING: dsh install failed, skipping'
+# Set up dsh-tui profile as the target user so ~/.dsh lands in the correct home.
+sudo -u '${_username}' sh -c '
+    dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui \
+    && cd ~/.dsh/profiles/dsh-tui && pnpm approve-builds --all
+' || echo 'WARNING: dsh-tui profile setup failed, skipping'
 
 # Layer 6: Antigravity CLI (agy)
 #
