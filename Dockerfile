@@ -183,17 +183,25 @@ RUN _node_fallback_version=v26.13.0; \
     && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
     && rm /tmp/node.tar.xz \
     && for i in 1 2 3; do \
-        timeout --kill-after=10 600 npm install -g @anthropic-ai/claude-code @openai/codex @deepseek-ai/dsh @deepseek-harness-tui/dsh-tui \
+        timeout --kill-after=10 600 npm install -g @anthropic-ai/claude-code @openai/codex \
             --registry https://registry.npmmirror.com \
             --fetch-timeout=60000 --fetch-retries=2 \
             --fetch-retry-mintimeout=5000 --fetch-retry-maxtimeout=15000 && break; \
         echo "npm install attempt $i/3 failed or stalled, retrying..."; sleep 5; \
         [ "$i" = 3 ] && exit 1; \
-    done
+    done \
+    && npm install -g pnpm @deepseek-ai/dsh@latest \
+        || echo "WARNING: dsh install failed, skipping"
 
 # ------------------------------------------------------------------
 # Switch to non-root user
 # ------------------------------------------------------------------
 USER $USERNAME
+
+# Set up dsh-tui profile as the non-root user so ~/.dsh lands in the
+# correct home directory.
+RUN dsh plugin --profile dsh-tui add @deepseek-harness-tui/dsh-tui \
+    && cd ~/.dsh/profiles/dsh-tui && pnpm approve-builds --all \
+    || echo "WARNING: dsh-tui profile setup failed, skipping"
 
 WORKDIR /workspace
