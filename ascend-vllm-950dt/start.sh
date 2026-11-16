@@ -136,40 +136,6 @@ platform_build_args() {
 #   the host driver always wins here: it matches the NPU firmware actually
 #   running on this machine, which the image's baked-in driver may not.
 #
-# Install the Ascend-focused cannbot plugins for Claude Code, Codex, and
-# DeepSeek Harness (dsh). common/lib.sh's Layer 5 already installed
-# @anthropic-ai/claude-code, @openai/codex, and @deepseek-ai/dsh globally via
-# npm before platform_post_build_exec runs, so `npx` and all three CLIs are
-# on root's PATH here. Each plugin install is best-effort: a flaky npm
-# registry fetch for one plugin shouldn't fail the whole image build, so
-# failures are logged and the loop continues.
-_ascend_install_cannbot_plugins() {
-    local _ctr="$1"
-    local _plugins=(
-        triton-op-generator
-        catlass-op-generator
-        ops-perf-optimize
-        tilelang-op-orchestrator
-        pypto-op-orchestrator
-        ops-registry-invoke
-        ops-direct-invoke-flash
-        ops-direct-invoke
-    )
-    local _tools=(claude codex dsh)
-
-    print_step "安装 cannbot 插件 (Ascend 算子/模型推理相关)..."
-    local _plugin _tool
-    for _plugin in "${_plugins[@]}"; do
-        for _tool in "${_tools[@]}"; do
-            if ! docker exec -u root "$_ctr" bash -c "
-                npx -y @cannbot-plugin/cannbot@latest install '${_plugin}' --tool '${_tool}'
-            "; then
-                echo "WARNING: cannbot plugin '${_plugin}' (--tool ${_tool}) 安装失败,跳过" >&2
-            fi
-        done
-    done
-}
-
 platform_post_build_exec() {
     local _ctr="$1"
 
@@ -197,7 +163,6 @@ platform_post_build_exec() {
         '
     fi
 
-    _ascend_install_cannbot_plugins "$_ctr"
 }
 
 # ── Platform environment variables ────────────────────────────────
@@ -598,6 +563,52 @@ SCRIPT_EOF
     fi
 }
 
+# Install the cannbot-knowledge CANN domain knowledge base for Claude Code and
+# Codex, scoped to the mounted repo (WORKSPACE_DIR). This supersedes the old
+# @cannbot-plugin/cannbot npm plugin install: cannbot-knowledge's install.sh
+# requires a real, already-existing project directory to write project-scoped
+# files into (.claude/skills, CLAUDE.md, .agents/skills, .cannbot/knowledge.env),
+# so it cannot run during platform_post_build_exec (the build container never
+# mounts the repo) and must run here, after the repo is mounted and the user's
+# shell env is ready.
+#
+# The knowledge repo itself is cloned once into the container user's home
+# (~/.cannbot/cannbot-knowledge, install.sh's own default), which is bind-mounted
+# to the host at $HOME/${CONTAINER_NAME} and therefore survives container
+# restarts/recreation — a second invocation reuses and fast-forwards that clone
+# instead of re-cloning. Runs as the target user (not root) via a login shell;
+# unlike the FlagOS images this base image has no /flagos venv, so install.sh
+# resolves whatever python3 >= 3.10 is on the system PATH.
+_ascend_install_cannbot_knowledge() {
+    local _username="$(id -un)"
+    local _knowledge_root="/home/${_username}/.cannbot/cannbot-knowledge"
+    local _tools=(claude codex)
+
+    print_step "安装 cannbot-knowledge (CANN 领域知识库)..."
+
+    if ! docker exec -u "${_username}" "${PROXY_ARGS[@]}" "${CONTAINER_NAME}" bash -lc "
+        set -e
+        if [[ ! -d '${_knowledge_root}/.git' ]]; then
+            mkdir -p '$(dirname "${_knowledge_root}")'
+            git clone --branch master --single-branch \
+                https://gitcode.com/cann/cannbot-knowledge.git '${_knowledge_root}'
+        fi
+    "; then
+        print_warn "cannbot-knowledge 仓库克隆失败,跳过知识库安装"
+        return
+    fi
+
+    local _tool
+    for _tool in "${_tools[@]}"; do
+        if ! docker exec -u "${_username}" "${PROXY_ARGS[@]}" "${CONTAINER_NAME}" bash -lc "
+            bash '${_knowledge_root}/install.sh' '${_tool}' '${WORKSPACE_DIR}' consumer
+        "; then
+            print_warn "cannbot-knowledge 安装失败 (--tool ${_tool}),跳过"
+        fi
+    done
+    print_success "cannbot-knowledge 安装完成"
+}
+
 # ── Load shared logic ─────────────────────────────────────────────
 # shellcheck source=../common/lib.sh
 source "${REPO_ROOT}/common/lib.sh"
@@ -643,6 +654,8 @@ _run_container() {
             exit 0
         ' 2>&1 | grep -v "DrvMngGetConsoleLogLevel" || true
         print_success "Ascend 环境已初始化"
+
+        _ascend_install_cannbot_knowledge
 
         # Only restart the container to propagate usermod group changes when it
         # was just freshly created.  If it was already running before this

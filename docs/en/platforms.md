@@ -46,7 +46,7 @@ against the upstream Moore Threads vllm image.
 | `hygon` | `/dev/kfd`, `/dev/mkfd`, `/dev/dri` | `--group-add video`, `--group-add 39`, `--privileged` | — | `/opt/hyhal` | — |
 | `hygon-vllm` | same as `hygon` | same as `hygon` | — | `/opt/hyhal` | — |
 | `cambricon` | `/dev/cambricon_dev0`–`7`, `/dev/cambricon_ctl` | — | — | — | — |
-| `ascend` (and all 4 other Ascend variants) | `/dev/davinci0`–`7` (`ascend-vllm-910c` only: `0`–`15`), `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` | `--privileged`, `--pid=host`, `--security-opt label=disable` | `HwHiAiUser` | `/usr/local/dcmi`, `/usr/local/sbin/npu-smi` | `platform_build_args` (mounts host driver read-only) + `platform_post_build_exec` (bakes driver/dcmi into image, installs cannbot plugins) — see [Ascend](ascend.md) |
+| `ascend` (and all 4 other Ascend variants) | `/dev/davinci0`–`7` (`ascend-vllm-910c` only: `0`–`15`), `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` | `--privileged`, `--pid=host`, `--security-opt label=disable` | `HwHiAiUser` | `/usr/local/dcmi`, `/usr/local/sbin/npu-smi` | `platform_build_args` (mounts host driver read-only) + `platform_post_build_exec` (bakes driver/dcmi into image); cannbot-knowledge installs at container-start time instead — see [Ascend](ascend.md) |
 | `metax` | `/dev/mxcd`, `/dev/dri` | `--group-add=video` | — | — | — |
 | `iluvatar` | `/dev/itrctl`, `/dev/iluvatar0`–`15` | — | — | `/usr/local/corex` (read-only) | — |
 | `mthreads` | `/dev/mtgpu.0`–`7`, `/dev/dri` | `--group-add render`, `--group-add video` | `render` (GID pinned to match the host's) | `/usr/bin/mthreads-gmi` (read-only) | — |

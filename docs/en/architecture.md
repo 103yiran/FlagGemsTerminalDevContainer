@@ -80,7 +80,7 @@ a platform that doesn't need one simply doesn't define it.
 | `platform_hardware_args` | **Yes** | `_run_container`, before `docker run` | Echoes extra `docker run` flags, one per line (device files, `--privileged`, `--group-add`, ulimits, etc.) for the long-lived dev container. |
 | `platform_user_groups` | No | `_build_dev`, layer 3 | Echoes extra group names (or `name:gid` to pin a GID) to create and add the container user to, before `useradd`. Used when the hardware driver gates access by group membership (e.g. Ascend's `HwHiAiUser`, Moore Threads' `render`). |
 | `platform_build_args` | No | `_build_dev`, before starting the build container | Echoes extra `docker run` flags for the *throwaway build container* specifically (e.g. Ascend mounts the host driver read-only so `platform_post_build_exec` can bake it into the image). |
-| `platform_post_build_exec` | No | `_build_dev`, after layer 6, before `docker commit` | Runs arbitrary `docker exec -u root` commands against the build container right before it's committed. Used for anything that needs to end up baked into the image layer itself — Ascend's driver/dcmi copy-and-chmod, and the cannbot plugin installs (see [Ascend](ascend.md)). |
+| `platform_post_build_exec` | No | `_build_dev`, after layer 6, before `docker commit` | Runs arbitrary `docker exec -u root` commands against the build container right before it's committed. Used for anything that needs to end up baked into the image layer itself — Ascend's driver/dcmi copy-and-chmod (see [Ascend](ascend.md)). |
 
 Three further extension points are not formal hooks, but conventions every
 launcher that needs them follows the same way (see [Platforms](platforms.md)

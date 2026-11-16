@@ -74,7 +74,7 @@
 | `platform_hardware_args` | **是** | `_run_container`，在 `docker run` 之前 | 逐行输出额外的 `docker run` flag（设备文件、`--privileged`、`--group-add`、ulimit 等）,作用于长期运行的 dev 容器。 |
 | `platform_user_groups` | 否 | `_build_dev` 第 3 层 | 逐行输出要创建并加入容器用户的额外用户组（`name` 或 `name:gid` 以固定 GID），在 `useradd` 之前执行。用于驱动按用户组成员身份控制访问的场景（例如 Ascend 的 `HwHiAiUser`、摩尔线程的 `render`）。 |
 | `platform_build_args` | 否 | `_build_dev`，启动构建容器之前 | 专门为*临时构建容器*输出额外的 `docker run` flag（例如 Ascend 以只读方式挂载宿主机 driver,供 `platform_post_build_exec` 烘焙进镜像）。 |
-| `platform_post_build_exec` | 否 | `_build_dev`，第 6 层之后、`docker commit` 之前 | 对构建容器执行任意 `docker exec -u root` 命令,在 commit 之前完成。用于任何需要真正烘焙进镜像层的操作——Ascend 的 driver/dcmi 拷贝与权限修复,以及 cannbot 插件安装（见[Ascend 专题](ascend.md)）。 |
+| `platform_post_build_exec` | 否 | `_build_dev`，第 6 层之后、`docker commit` 之前 | 对构建容器执行任意 `docker exec -u root` 命令,在 commit 之前完成。用于任何需要真正烘焙进镜像层的操作——Ascend 的 driver/dcmi 拷贝与权限修复（见[Ascend 专题](ascend.md)）。 |
 
 还有三个扩展点不是正式的钩子,但所有需要它们的启动脚本都用同一套约定
 （谁用了哪个见[平台参考](platforms.md)）：

@@ -5,8 +5,8 @@ Ascend has five launchers (`ascend/start.sh`, `ascend-910c/start.sh`,
 `ascend-vllm-950dt/start.sh`) and carries by far the most platform-specific
 logic in the repository — driver baking, a `HwHiAiUser` permission model
 with a real kernel-level gotcha, CANN environment discovery/injection, and
-the cannbot plugin install. This page covers all five together, since they
-share essentially everything except their base image and device count.
+the cannbot-knowledge install. This page covers all five together, since
+they share essentially everything except their base image and device count.
 
 ## 1. The five variants, and why they exist
 
@@ -19,7 +19,7 @@ share essentially everything except their base image and device count.
 | `ascend-vllm-950dt/start.sh` | `vllm-ascend:v0.30.0rc2-a5` (upstream, 950DT build) | 950DT | `/dev/davinci0`–`7` |
 
 All five set `PLATFORM="ascend"` and share identical device-permission,
-shell-env-injection, and cannbot-install logic — only the base image
+shell-env-injection, and cannbot-knowledge-install logic — only the base image
 reference, the resulting `DEV_IMAGE`/`CONTAINER_NAME`, and (for the `-910c`
 Atlas A3 variant) the device count differ. The `-vllm` variants additionally
 default to mounting a `../FlagGems-vllm` sibling checkout instead of plain
@@ -142,35 +142,54 @@ instead of resetting to the system interpreter. A `sudo-python` wrapper at
 `/usr/local/bin/sudo-python` handles the common case of wanting the active
 `$VIRTUAL_ENV`'s interpreter specifically under `sudo`.
 
-## 5. cannbot plugins
+## 5. cannbot-knowledge
 
-All five Ascend launchers install a set of
-[cannbot](https://www.npmjs.com/package/@cannbot-plugin/cannbot) plugins
-into the dev image during build, layered on top of the Claude Code and Codex
-CLIs that `common/lib.sh`'s build layer 5 already installs
-for every platform. This happens automatically as part of `platform_post_build_exec` —
-no extra flags needed — by running, for each plugin and each tool:
+All five Ascend launchers install
+[cannbot-knowledge](https://gitcode.com/cann/cannbot-knowledge) — a
+searchable, source-traceable CANN domain knowledge base covering operator
+development for AscendC/PyPTO/TileLang/Triton, model migration, inference
+optimization, and graph-mode/Runtime scenarios. It replaces the old
+npm-based `@cannbot-plugin/cannbot` plugin install.
+
+The old cannbot plugin installed globally via `npx` with no dependency on
+any project path, so it could live inside `platform_post_build_exec` during
+image build (before the repo is ever mounted). cannbot-knowledge's
+`install.sh <tool> <project-path> [consumer|contributor]` requires
+`<project-path>` to already exist and writes project-scoped files
+(`.claude/skills`, a managed block in `CLAUDE.md`, `.agents/skills`,
+`.cannbot/knowledge.env`) directly into it — so this step has to run after
+the repo is mounted into the container, not at build time. It now lives in
+the `_run_container` override (`_ascend_install_cannbot_knowledge`), run
+after Ascend environment initialization and before the group-change
+restart, on every container start/attach:
 
 ```bash
-npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool claude
-npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool codex
-npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool dsh
+bash install.sh claude <WORKSPACE_DIR> consumer
+bash install.sh codex  <WORKSPACE_DIR> consumer
 ```
 
-for:
+where `<WORKSPACE_DIR>` is the path the repo is mounted at inside the
+container (`/workspace/FlagGems` by default). The knowledge repo itself is
+cloned once into the container user's home at
+`~/.cannbot/cannbot-knowledge` (install.sh's own default), which is
+bind-mounted to `$HOME/<container-name>` on the host, so it survives
+container restarts/recreation — a later run just fast-forwards the existing
+clone instead of re-cloning. The install runs as the container user (not
+root) in a login shell so `PATH` picks up `/flagos/bin`'s `python3` (>=
+3.10) from `_ascend_inject_shell_env`.
 
-- `triton-op-generator`
-- `catlass-op-generator`
-- `ops-perf-optimize`
-- `tilelang-op-orchestrator`
-- `pypto-op-orchestrator`
-- `ops-registry-invoke`
-- `ops-direct-invoke-flash`
-- `ops-direct-invoke`
+`consumer` mode installs three read-only query skills:
+`knowledge-query`, `ascendc-api-knowledge-query`, and
+`runtime-api-knowledge-query`, for general knowledge search, Ascend C API
+lookups, and CANN Runtime API recommendations/comparisons. `contributor`
+mode additionally installs `knowledge-ingest`, `knowledge-lint`, and two
+operator-extraction skills, for contributing back to the knowledge base;
+these launchers only need `consumer`.
 
-These give `claude`, `codex`, and `dsh` Ascend-specific context for
-generating Triton/CATLASS/TileLang/PyPTO ops and for invoking/registering
-ops during model-inference and performance-optimization work. A single
-plugin failing to install (e.g. a flaky npm registry fetch)
-only logs a warning — it does not fail the whole image build. If a plugin
-didn't make it in, rerun `--rebuild-dev` to retry.
+A failed install (e.g. a `git clone` network hiccup, or too old a Python)
+only logs a warning and is skipped — it does not fail `start.sh`. Rerun it
+manually inside the container if needed:
+
+```bash
+cd ~/.cannbot/cannbot-knowledge && bash install.sh claude /workspace/FlagGems consumer
+```

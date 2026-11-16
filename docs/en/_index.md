@@ -23,7 +23,7 @@ differences, and how to extend the repository with a new backend.
 - [Ascend](ascend.md) — a deeper look at the four Ascend variants
   (`ascend`, `ascend-910c`, `ascend-vllm`, `ascend-vllm-910c`): driver
   baking, the `HwHiAiUser` permission model, the root-only NPU-access
-  limitation, and the cannbot plugin install.
+  limitation, and the cannbot-knowledge install.
 - [Usage](usage.md) — `start.sh` flags, environment variable overrides,
   network/proxy/SSH configuration, and container management commands.
 - [Contributing](contribution.md) — how to add a new hardware platform

@@ -46,7 +46,7 @@
 | `hygon` | `/dev/kfd`、`/dev/mkfd`、`/dev/dri` | `--group-add video`、`--group-add 39`、`--privileged` | — | `/opt/hyhal` | — |
 | `hygon-vllm` | 与 `hygon` 相同 | 与 `hygon` 相同 | — | `/opt/hyhal` | — |
 | `cambricon` | `/dev/cambricon_dev0`–`7`、`/dev/cambricon_ctl` | — | — | — | — |
-| `ascend`（及其他 4 个 Ascend 变体） | `/dev/davinci0`–`7`（仅 `ascend-vllm-910c`：`0`–`15`）、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` | `--privileged`、`--pid=host`、`--security-opt label=disable` | `HwHiAiUser` | `/usr/local/dcmi`、`/usr/local/sbin/npu-smi` | `platform_build_args`（只读挂载宿主机 driver）+ `platform_post_build_exec`（把 driver/dcmi 烘焙进镜像,安装 cannbot 插件）——见[Ascend 专题](ascend.md) |
+| `ascend`（及其他 4 个 Ascend 变体） | `/dev/davinci0`–`7`（仅 `ascend-vllm-910c`：`0`–`15`）、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` | `--privileged`、`--pid=host`、`--security-opt label=disable` | `HwHiAiUser` | `/usr/local/dcmi`、`/usr/local/sbin/npu-smi` | `platform_build_args`（只读挂载宿主机 driver）+ `platform_post_build_exec`（把 driver/dcmi 烘焙进镜像）；cannbot-knowledge 改在容器启动阶段安装——见[Ascend 专题](ascend.md) |
 | `metax` | `/dev/mxcd`、`/dev/dri` | `--group-add=video` | — | — | — |
 | `iluvatar` | `/dev/itrctl`、`/dev/iluvatar0`–`15` | — | — | `/usr/local/corex`（只读） | — |
 | `mthreads` | `/dev/mtgpu.0`–`7`、`/dev/dri` | `--group-add render`、`--group-add video` | `render`（GID 固定为与宿主机一致） | `/usr/bin/mthreads-gmi`（只读） | — |

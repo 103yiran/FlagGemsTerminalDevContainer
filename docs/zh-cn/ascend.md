@@ -4,8 +4,9 @@ Ascend 有 5 个启动脚本（`ascend/start.sh`、`ascend-910c/start.sh`、
 `ascend-vllm/start.sh`、`ascend-vllm-910c/start.sh`、
 `ascend-vllm-950dt/start.sh`),承载了全仓库里最
 复杂的平台专属逻辑——driver 烘焙、带有真实内核级坑点的 `HwHiAiUser`
-权限模型、CANN 环境发现/注入,以及 cannbot 插件安装。本页把 5 个变体放在
-一起讲,因为除了 base 镜像和设备数量之外,它们几乎共享全部逻辑。
+权限模型、CANN 环境发现/注入,以及 cannbot-knowledge 知识库安装。本页把
+5 个变体放在一起讲,因为除了 base 镜像和设备数量之外,它们几乎共享全部
+逻辑。
 
 ## 1. 5 个变体，分别是为了什么
 
@@ -18,7 +19,7 @@ Ascend 有 5 个启动脚本（`ascend/start.sh`、`ascend-910c/start.sh`、
 | `ascend-vllm-950dt/start.sh` | `vllm-ascend:v0.30.0rc2-a5`（上游镜像，950DT 构建） | 950DT | `/dev/davinci0`–`7` |
 
 5 个脚本都设置 `PLATFORM="ascend"`,共享完全相同的设备权限配置、shell
-环境注入,以及 cannbot 安装逻辑——只有 base 镜像引用、由此得到的
+环境注入,以及 cannbot-knowledge 安装逻辑——只有 base 镜像引用、由此得到的
 `DEV_IMAGE`/`CONTAINER_NAME`,以及（Atlas A3 的 `-910c` 变体）设备数量
 不同。`-vllm` 系列额外默认挂载 `../FlagGems-vllm` 这个同级目录而不是
 普通 FlagGems,匹配上游镜像为 vLLM 调优过的 Python 环境——如果也想在这
@@ -131,33 +132,49 @@ sudo ascend-refresh-env
 系统解释器。`/usr/local/bin/sudo-python` 这个 wrapper 专门处理"想在
 `sudo` 下用当前 `$VIRTUAL_ENV` 对应的解释器"这个常见场景。
 
-## 5. cannbot 插件
+## 5. cannbot-knowledge 知识库
 
-5 个 Ascend 启动脚本都会在构建 dev 镜像时安装一组
-[cannbot](https://www.npmjs.com/package/@cannbot-plugin/cannbot) 插件,
-叠加在 `common/lib.sh` 构建第 5 层已经为所有平台安装好的 Claude Code 和
-Codex CLI 之上。这一步是 `platform_post_build_exec` 的一部分,自动完成,
-不需要额外参数——对每个插件、每个 tool 分别执行：
+5 个 Ascend 启动脚本都会安装
+[cannbot-knowledge](https://gitcode.com/cann/cannbot-knowledge)——一个
+面向 CANN 社区的可检索、可溯源的领域知识库,覆盖 AscendC/PyPTO/TileLang
+/Triton 等算子开发、模型迁移、推理优化,以及图模式、Runtime 等场景。它
+取代了旧版基于 npm 的 `@cannbot-plugin/cannbot` 插件安装方式。
+
+旧版 cannbot 插件通过全局 `npx` 安装,不依赖任何项目路径,所以可以放在
+`platform_post_build_exec` 里,在镜像构建阶段（此时仓库还未挂载）完成。
+cannbot-knowledge 的 `install.sh <tool> <project-path> [consumer|contributor]`
+要求 `<project-path>` 是一个已经存在的目录,并把项目专属文件（
+`.claude/skills`、`CLAUDE.md` 里的管理块、`.agents/skills`、
+`.cannbot/knowledge.env`）直接写进这个目录——因此这一步必须在仓库已经
+挂载到容器之后运行,而不是镜像构建期。它现在是 `_run_container` 覆盖逻辑
+的一部分（`_ascend_install_cannbot_knowledge`),在 Ascend 环境初始化之后、
+容器因组权限变更重启之前执行,每次启动/重新连接容器都会执行一次：
 
 ```bash
-npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool claude
-npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool codex
-npx -y @cannbot-plugin/cannbot@latest install <plugin> --tool dsh
+bash install.sh claude <WORKSPACE_DIR> consumer
+bash install.sh codex  <WORKSPACE_DIR> consumer
 ```
 
-插件列表：
+其中 `<WORKSPACE_DIR>` 就是仓库挂载进容器的路径（默认
+`/workspace/FlagGems`）。知识库仓库本身克隆到容器用户 home 下的
+`~/.cannbot/cannbot-knowledge`（`install.sh` 自带的默认位置),该 home 目录
+通过 bind mount 落在宿主机的 `$HOME/<容器名>` 下,所以重启或重建容器都不会
+丢失这份克隆,第二次运行会直接 fast-forward 更新而不是重新 clone。安装以
+容器用户身份（非 root）在 login shell 下运行,这样 PATH 能取到
+`_ascend_inject_shell_env` 注入的 `/flagos/bin` 下的 `python3`（要求
+`>= 3.10`）。
 
-- `triton-op-generator`
-- `catlass-op-generator`
-- `ops-perf-optimize`
-- `tilelang-op-orchestrator`
-- `pypto-op-orchestrator`
-- `ops-registry-invoke`
-- `ops-direct-invoke-flash`
-- `ops-direct-invoke`
+`consumer` 模式只装三个只读检索 Skill：`knowledge-query`、
+`ascendc-api-knowledge-query`、`runtime-api-knowledge-query`——分别用于
+通用知识检索、Ascend C API 查询、CANN Runtime API 推荐/比较。
+`contributor` 模式还会额外装 `knowledge-ingest`、`knowledge-lint` 和两个
+算子知识提取 Skill,面向要往知识库贡献内容的场景；这些启动脚本只需要
+`consumer`,没有走 `contributor` 路径。
 
-这些插件为 `claude`、`codex` 和 `dsh` 提供了 Ascend 专属的上下文,用于
-生成 Triton/CATLASS/TileLang/PyPTO 算子,以及在模型推理和性能优化场景中
-注册/调用算子。单个 plugin 安装
-失败（比如 npm registry 偶发抓取失败）只会打印警告——不会导致整个镜像
-构建失败。如果某个插件没装上,重新执行 `--rebuild-dev` 即可重试。
+安装失败（比如 git clone 网络问题,或目标 Python 版本太旧）只会打印
+`print_warn` 警告并跳过——不会导致 `start.sh` 整体失败。可以手动在容器里
+重跑：
+
+```bash
+cd ~/.cannbot/cannbot-knowledge && bash install.sh claude /workspace/FlagGems consumer
+```

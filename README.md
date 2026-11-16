@@ -60,7 +60,7 @@ image/container. See [docs/en/usage.md](docs/en/usage.md) for the full
 `start.sh` flag/env-var reference and examples, and
 [docs/en/ascend.md](docs/en/ascend.md) for details specific to the five
 Ascend launchers (driver baking, the root-only NPU access limitation, CANN
-environment injection, cannbot plugins).
+environment injection, the cannbot-knowledge install).
 
 ## Where to go next
 

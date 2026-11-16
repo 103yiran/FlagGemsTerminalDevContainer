@@ -48,7 +48,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ```
 
 首次运行时，脚本会构建 dev 镜像、创建容器并把仓库挂载到 `/workspace/` 下、在容器内安装 oh-my-zsh/LazyVim，然后进入 zsh。后续再次运行会直接复用已有的镜像和容器。完整的 `start.sh` 参数/环境变量说明和示例见
-[docs/zh-cn/usage.md](docs/zh-cn/usage.md)，五个 Ascend 启动脚本的专属细节（驱动烘焙、root-only NPU 访问限制、CANN 环境注入、cannbot 插件）见
+[docs/zh-cn/usage.md](docs/zh-cn/usage.md)，五个 Ascend 启动脚本的专属细节（驱动烘焙、root-only NPU 访问限制、CANN 环境注入、cannbot-knowledge 安装）见
 [docs/zh-cn/ascend.md](docs/zh-cn/ascend.md)。
 
 ## 延伸阅读

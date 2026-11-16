@@ -18,7 +18,7 @@
   额外挂载,以及 15 个启动脚本各自使用的钩子。
 - [Ascend 专题](ascend.md) —— 深入讲解 4 个 Ascend 变体（`ascend`、
   `ascend-910c`、`ascend-vllm`、`ascend-vllm-910c`）：driver 烘焙、
-  `HwHiAiUser` 权限模型、仅 root 可用 NPU 的限制,以及 cannbot 插件安装。
+  `HwHiAiUser` 权限模型、仅 root 可用 NPU 的限制,以及 cannbot-knowledge 安装。
 - [使用说明](usage.md) —— `start.sh` 的参数、环境变量覆盖、
   网络/代理/SSH 配置,以及容器管理命令。
 - [贡献指南](contribution.md) —— 如何新增一个硬件平台（最小化启动脚本 vs.
