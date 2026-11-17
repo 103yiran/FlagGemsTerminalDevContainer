@@ -88,6 +88,12 @@ pkg="nsight-compute-${ver}"
 # lists/partial dir apt requires; recreate it before any apt-get call.
 mkdir -p /var/lib/apt/lists/partial
 
+# apt-key writes to /tmp; if the container was started with a restrictive /tmp
+# (e.g. drwxr-xr-t instead of drwxrwxrwt) every repo appears unsigned and
+# apt-get update fails with "couldn't create temporary file".  Fix it here
+# since this script always runs as root.
+chmod 1777 /tmp
+
 # Cache the ~390 MB .deb under the container home (a persistent host bind
 # mount) so re-creating the container does not re-download it.
 cache="${home_dir}/.cache/nsight-compute"

@@ -360,6 +360,9 @@ sed -i \
 
 # Layer 3: system packages + user creation
 PLATFORM='${PLATFORM}'
+# apt-key writes temp files to /tmp; the base image ships with /tmp as
+# drwxr-xr-t (not world-writable), which makes every repo appear unsigned.
+chmod 1777 /tmp
 apt-get update
 apt-get install -y --no-install-recommends \
     sudo zsh git curl wget unzip ca-certificates ripgrep fd-find gh openssh-client squashfs-tools gnupg pass \
