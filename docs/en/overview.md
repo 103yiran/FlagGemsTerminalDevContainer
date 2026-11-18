@@ -38,6 +38,7 @@ FlagGemsTerminalDevContainer/
 ├── ascend-vllm-950dt/start.sh # vllm-ascend image, 950DT (8-device) variant
 ├── hygon-vllm/start.sh      # Hygon DCU launcher on the upstream vllm image
 ├── metax/start.sh         # Metax launcher
+├── metax-vllm/start.sh    # Metax launcher on the upstream vllm image
 ├── iluvatar/start.sh      # Iluvatar launcher
 ├── mthreads/start.sh      # Moore Threads launcher
 ├── mthreads-vllm/start.sh # Moore Threads launcher on the upstream vllm image

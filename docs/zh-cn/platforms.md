@@ -1,6 +1,6 @@
 # 平台参考
 
-这里横向列出全部 17 个启动脚本的差异。各钩子具体做了什么见
+这里横向列出全部 18 个启动脚本的差异。各钩子具体做了什么见
 [架构](architecture.md),5 个 Ascend 变体的深入讲解见
 [Ascend 专题](ascend.md)。
 
@@ -19,6 +19,7 @@
 | `ascend-vllm-910c/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1-a3` | 无（上游镜像，`Dockerfile.a3`） | `flaggems-vllm-ascend-910c:dev` / `flaggems-vllm-ascend-910c-dev-<用户名>` |
 | `ascend-vllm-950dt/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc2-a5` | 无（上游镜像，950DT 构建） | `flaggems-vllm-ascend-950dt:dev` / `flaggems-vllm-ascend-950dt-dev-<用户名>` |
 | `metax/start.sh` | `metax` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2` | `maca3.8.1.3` | `flaggems-metax:dev` / `flaggems-metax-dev-<用户名>` |
+| `metax-vllm/start.sh` | `metax` | `harbor.baai.ac.cn/flaggems-vllm/vllm-metax:0.29.0-maca.ai3.9.0.9-torch2.10-py312-ubuntu24.04-amd64` | 无（上游镜像） | `flaggems-vllm-metax:dev` / `flaggems-vllm-metax-dev-<用户名>` |
 | `iluvatar/start.sh` | `iluvatar` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2` | `corex4.5.0` | `flaggems-iluvatar:dev` / `flaggems-iluvatar-dev-<用户名>` |
 | `mthreads/start.sh` | `mthreads` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.1.2` | `musa5.2.0` | `flaggems-mthreads:dev` / `flaggems-mthreads-dev-<用户名>` |
 | `mthreads-vllm/start.sh` | `mthreads` | `registry.mthreads.com/mcconline/inference/vllm/vllm-openai:v0.32.0` | 无（上游镜像） | `flaggems-vllm-mthreads:dev` / `flaggems-vllm-mthreads-dev-<用户名>` |
@@ -35,7 +36,8 @@
 上游海光 DCU vllm 镜像。`nvidia-vllm/start.sh` 同样采用这个套路,内部设置
 `PLATFORM="nvidia"`,指向上游 NVIDIA NGC vllm 镜像。`mthreads-vllm/start.sh`
 同样采用这个套路,内部设置 `PLATFORM="mthreads"`,指向上游摩尔线程 vllm
-镜像。
+镜像。`metax-vllm/start.sh` 同样采用这个套路,内部设置 `PLATFORM="metax"`,
+指向上游 Metax vllm 镜像。
 
 ## 2. 硬件访问：设备、用户组、挂载、钩子
 
@@ -48,6 +50,7 @@
 | `cambricon` | `/dev/cambricon_dev0`–`7`、`/dev/cambricon_ctl` | — | — | — | — |
 | `ascend`（及其他 4 个 Ascend 变体） | `/dev/davinci0`–`7`（仅 `ascend-vllm-910c`：`0`–`15`）、`/dev/davinci_manager`、`/dev/devmm_svm`、`/dev/hisi_hdc` | `--privileged`、`--pid=host`、`--security-opt label=disable` | `HwHiAiUser` | `/usr/local/dcmi`、`/usr/local/sbin/npu-smi` | `platform_build_args`（只读挂载宿主机 driver）+ `platform_post_build_exec`（把 driver/dcmi 烘焙进镜像）；cannbot-knowledge 改在容器启动阶段安装——见[Ascend 专题](ascend.md) |
 | `metax` | `/dev/mxcd`、`/dev/dri` | `--group-add=video` | — | — | — |
+| `metax-vllm` | 与 `metax` 相同 | 与 `metax` 相同 | — | — | — |
 | `iluvatar` | `/dev/itrctl`、`/dev/iluvatar0`–`15` | — | — | `/usr/local/corex`（只读） | — |
 | `mthreads` | `/dev/mtgpu.0`–`7`、`/dev/dri` | `--group-add render`、`--group-add video` | `render`（GID 固定为与宿主机一致） | `/usr/bin/mthreads-gmi`（只读） | — |
 | `mthreads-vllm` | 与 `mthreads` 相同 | 与 `mthreads` 相同 | `render`（GID 固定为与宿主机一致） | `/usr/bin/mthreads-gmi`（只读） | — |
@@ -109,7 +112,7 @@
   `docker exec -u root` 的解决办法见
   [Ascend 专题 §3](ascend.md#3-为什么-npu-访问通常只能用-root)。
 - **`ascend-vllm` / `ascend-vllm-910c` / `ascend-vllm-950dt` / `hygon-vllm` /
-  `nvidia-vllm` / `mthreads-vllm`**：默认挂载的是 `../FlagGems-vllm` 这个
+  `nvidia-vllm` / `mthreads-vllm` / `metax-vllm`**：默认挂载的是 `../FlagGems-vllm` 这个
   同级目录,而不是普通的 FlagGems（可以用 `--repo` 覆盖）,因为上游
-  vllm-ascend / DCU vllm / NVIDIA vllm / 摩尔线程 vllm 镜像的 Python 环境
+  vllm-ascend / DCU vllm / NVIDIA vllm / 摩尔线程 vllm / Metax vllm 镜像的 Python 环境
   是为 vLLM 集成路径调优过的。

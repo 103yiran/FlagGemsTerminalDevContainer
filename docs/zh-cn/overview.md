@@ -35,6 +35,7 @@ FlagGemsTerminalDevContainer/
 ├── ascend-vllm-910c/start.sh  # vllm-ascend 镜像，Atlas A3（16 卡）变体
 ├── hygon-vllm/start.sh      # 基于上游 vllm 镜像的海光 DCU 启动脚本
 ├── metax/start.sh         # Metax 启动脚本
+├── metax-vllm/start.sh    # 基于上游 vllm 镜像的 Metax 启动脚本
 ├── iluvatar/start.sh      # Iluvatar 启动脚本
 ├── mthreads/start.sh      # 摩尔线程启动脚本
 ├── mthreads-vllm/start.sh # 基于上游 vllm 镜像的摩尔线程启动脚本

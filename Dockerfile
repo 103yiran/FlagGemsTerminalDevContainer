@@ -35,9 +35,13 @@
 # packages) the same way, pointing at the upstream Moore Threads vllm image
 # instead of flagos-runtime-mthreads-musa5.2.0 — see mthreads-vllm/start.sh.
 #
+# metax-vllm reuses PLATFORM=metax (same device files, groups, and apt
+# packages) the same way, pointing at the upstream Metax vllm image
+# instead of flagos-runtime-metax-maca3.8.1.3 — see metax-vllm/start.sh.
+#
 # Usage: built and launched via nvidia/start.sh, hygon/start.sh, cambricon/start.sh,
-#        ascend/start.sh, metax/start.sh, iluvatar/start.sh, mthreads/start.sh,
-#        kunlunxin/start.sh, hygon-vllm/start.sh, nvidia-vllm/start.sh,
+#        ascend/start.sh, metax/start.sh, metax-vllm/start.sh, iluvatar/start.sh,
+#        mthreads/start.sh, kunlunxin/start.sh, hygon-vllm/start.sh, nvidia-vllm/start.sh,
 #        mthreads-vllm/start.sh, thead/start.sh, or enflame/start.sh
 # ============================================================
 

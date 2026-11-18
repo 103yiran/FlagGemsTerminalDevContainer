@@ -1,6 +1,6 @@
 # Platforms
 
-A side-by-side reference for all 17 launchers. See [Architecture](architecture.md)
+A side-by-side reference for all 18 launchers. See [Architecture](architecture.md)
 for what each hook actually does, and [Ascend](ascend.md) for a deeper look
 at the five Ascend variants specifically.
 
@@ -19,6 +19,7 @@ at the five Ascend variants specifically.
 | `ascend-vllm-910c/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc1-a3` | n/a (upstream image, `Dockerfile.a3`) | `flaggems-vllm-ascend-910c:dev` / `flaggems-vllm-ascend-910c-dev-<user>` |
 | `ascend-vllm-950dt/start.sh` | `ascend` | `m.daocloud.io/quay.io/ascend/vllm-ascend:v0.30.0rc2-a5` | n/a (upstream image, 950DT build) | `flaggems-vllm-ascend-950dt:dev` / `flaggems-vllm-ascend-950dt-dev-<user>` |
 | `metax/start.sh` | `metax` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-metax-maca3.8.1.3:2.1.2` | `maca3.8.1.3` | `flaggems-metax:dev` / `flaggems-metax-dev-<user>` |
+| `metax-vllm/start.sh` | `metax` | `harbor.baai.ac.cn/flaggems-vllm/vllm-metax:0.29.0-maca.ai3.9.0.9-torch2.10-py312-ubuntu24.04-amd64` | n/a (upstream image) | `flaggems-vllm-metax:dev` / `flaggems-vllm-metax-dev-<user>` |
 | `iluvatar/start.sh` | `iluvatar` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-iluvatar-corex4.5.0:2.1.2` | `corex4.5.0` | `flaggems-iluvatar:dev` / `flaggems-iluvatar-dev-<user>` |
 | `mthreads/start.sh` | `mthreads` | `harbor.baai.ac.cn/flagos-runtime/flagos-runtime-mthreads-musa5.2.0:2.1.2` | `musa5.2.0` | `flaggems-mthreads:dev` / `flaggems-mthreads-dev-<user>` |
 | `mthreads-vllm/start.sh` | `mthreads` | `registry.mthreads.com/mcconline/inference/vllm/vllm-openai:v0.32.0` | n/a (upstream image) | `flaggems-vllm-mthreads:dev` / `flaggems-vllm-mthreads-dev-<user>` |
@@ -35,7 +36,8 @@ themselves purely via `BASE_IMAGE_NAME`/`BASE_IMAGE_TAG` and distinct
 the upstream Hygon DCU vllm image. `nvidia-vllm/start.sh` follows the same
 pattern with `PLATFORM="nvidia"` against the upstream NVIDIA NGC vllm image.
 `mthreads-vllm/start.sh` follows the same pattern with `PLATFORM="mthreads"`
-against the upstream Moore Threads vllm image.
+against the upstream Moore Threads vllm image. `metax-vllm/start.sh` follows
+the same pattern with `PLATFORM="metax"` against the upstream Metax vllm image.
 
 ## 2. Hardware access: devices, groups, mounts, hooks
 
@@ -48,6 +50,7 @@ against the upstream Moore Threads vllm image.
 | `cambricon` | `/dev/cambricon_dev0`–`7`, `/dev/cambricon_ctl` | — | — | — | — |
 | `ascend` (and all 4 other Ascend variants) | `/dev/davinci0`–`7` (`ascend-vllm-910c` only: `0`–`15`), `/dev/davinci_manager`, `/dev/devmm_svm`, `/dev/hisi_hdc` | `--privileged`, `--pid=host`, `--security-opt label=disable` | `HwHiAiUser` | `/usr/local/dcmi`, `/usr/local/sbin/npu-smi` | `platform_build_args` (mounts host driver read-only) + `platform_post_build_exec` (bakes driver/dcmi into image); cannbot-knowledge installs at container-start time instead — see [Ascend](ascend.md) |
 | `metax` | `/dev/mxcd`, `/dev/dri` | `--group-add=video` | — | — | — |
+| `metax-vllm` | same as `metax` | same as `metax` | — | — | — |
 | `iluvatar` | `/dev/itrctl`, `/dev/iluvatar0`–`15` | — | — | `/usr/local/corex` (read-only) | — |
 | `mthreads` | `/dev/mtgpu.0`–`7`, `/dev/dri` | `--group-add render`, `--group-add video` | `render` (GID pinned to match the host's) | `/usr/bin/mthreads-gmi` (read-only) | — |
 | `mthreads-vllm` | same as `mthreads` | same as `mthreads` | `render` (GID pinned to match the host's) | `/usr/bin/mthreads-gmi` (read-only) | — |
@@ -116,7 +119,7 @@ at a point the hook contract doesn't cover directly:
   [Ascend §3](ascend.md#3-why-npu-access-is-usually-root-only) for the full
   explanation and the `docker exec -u root` workaround.
 - **`ascend-vllm` / `ascend-vllm-910c` / `ascend-vllm-950dt` / `hygon-vllm` /
-  `nvidia-vllm` / `mthreads-vllm`**: default to mounting a `../FlagGems-vllm`
+  `nvidia-vllm` / `mthreads-vllm` / `metax-vllm`**: default to mounting a `../FlagGems-vllm`
   sibling checkout rather than plain FlagGems (use `--repo` to override),
   since the upstream vllm-ascend / DCU vllm / NVIDIA vllm / Moore Threads
-  vllm image's Python environment is tuned for the vLLM integration path.
+  vllm / Metax vllm image's Python environment is tuned for the vLLM integration path.

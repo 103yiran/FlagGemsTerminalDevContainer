@@ -45,6 +45,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./hygon-vllm/start.sh   # Hygon DCU, vllm base image
 ./nvidia-vllm/start.sh  # NVIDIA, upstream vllm base image
 ./metax/start.sh        # Metax
+./metax-vllm/start.sh  # Metax, upstream vllm base image
 ./iluvatar/start.sh     # Iluvatar
 ./mthreads/start.sh     # Moore Threads
 ./mthreads-vllm/start.sh # Moore Threads, upstream vllm base image

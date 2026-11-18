@@ -39,6 +39,7 @@ git clone https://github.com/your-org/FlagGemsTerminalDevContainer.git
 ./hygon-vllm/start.sh   # 海光 DCU，vllm base 镜像
 ./nvidia-vllm/start.sh  # NVIDIA，上游 vllm base 镜像
 ./metax/start.sh        # Metax
+./metax-vllm/start.sh  # Metax，上游 vllm base 镜像
 ./iluvatar/start.sh     # Iluvatar
 ./mthreads/start.sh     # 摩尔线程（Moore Threads）
 ./mthreads-vllm/start.sh # 摩尔线程，上游 vllm base 镜像
