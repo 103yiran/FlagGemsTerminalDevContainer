@@ -64,6 +64,13 @@ if [[ "$_arch" != "x86_64" ]]; then
     exit 0
 fi
 
+# Check if ncu is already available and working
+if docker exec "$_ctr" bash -c "command -v ncu >/dev/null 2>&1 && ncu --version >/dev/null 2>&1"; then
+    _current="$(docker exec "$_ctr" ncu --version 2>/dev/null | awk '/^Version/{print $2}')"
+    info "ncu 已安装${_current:+ (版本 ${_current})}，跳过"
+    exit 0
+fi
+
 if docker exec -u root "$_ctr" bash -c "dpkg -s 'nsight-compute-${_ver}' >/dev/null 2>&1"; then
     _current="$(docker exec "$_ctr" /opt/nvidia/nsight-compute/"${_ver}"/ncu --version 2>/dev/null | awk '/^Version/{print $2}')"
     info "nsight-compute-${_ver} 已安装${_current:+ (ncu ${_current})}，跳过"
